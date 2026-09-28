@@ -1,11 +1,13 @@
 import { useState, useRef, useEffect } from 'react'
 
-// Estructura basada en los datos reales del pantallazo
+// Estructura basada en los datos reales del pantallazo (con bpo y coordina)
 interface Tienda {
   id: string;
   fecha: string;
   numero: string;
   linea: string; // Nombre de la tienda / línea
+  bpo: string;    // Nueva columna BPO
+  coordina: string; // Nueva columna Coordina
   producto: string;
   trafi: string;
   presupuesto: number;
@@ -25,39 +27,39 @@ interface ActividadBitacora {
 const RESPONSABLES: Responsable[] = ['OSCAR', 'MATEO', 'WILLINTONG'];
 
 const TIENDAS_INICIALES: Tienda[] = [
-  { id: '1', fecha: '27/9/2026', numero: '3117938167', linea: 'DRISTRI PRO 1', producto: 'CAMISETAS', trafi: 'Oscar', presupuesto: 290000 },
-  { id: '2', fecha: '27/9/2026', numero: '3006865174', linea: 'VARIEDADES DIGITALES 1', producto: 'CAMISETAS', trafi: 'Oscar', presupuesto: 190000 },
-  { id: '3', fecha: '27/9/2026', numero: '3117718030', linea: 'NOVA HOME', producto: 'CAMISETAS', trafi: 'Oscar', presupuesto: 290000 },
-  { id: '4', fecha: '27/9/2026', numero: '3117654394', linea: 'DANTE NOVA', producto: 'CAMISETAS', trafi: 'Oscar', presupuesto: 285000 },
-  { id: '5', fecha: '27/9/2026', numero: '3011674464', linea: 'CLOTHESNEW 2', producto: 'CAMISETAS', trafi: 'Oscar', presupuesto: 200000 },
-  { id: '6', fecha: '27/9/2026', numero: '3233721174', linea: 'GOAL STORE 2', producto: 'CAMISETAS', trafi: 'Oscar', presupuesto: 240000 },
-  { id: '7', fecha: '27/9/2026', numero: '3104964973', linea: 'LEVEL ONE 2', producto: 'CAMISETAS', trafi: 'Oscar', presupuesto: 240000 },
-  { id: '8', fecha: '27/9/2026', numero: '3013622434', linea: 'AURA Y HOME 2', producto: 'CAMISETAS', trafi: 'Oscar', presupuesto: 300000 },
-  { id: '9', fecha: '27/9/2026', numero: '3043646273', linea: 'NET CAPITAL 1', producto: 'CAMISETAS', trafi: 'Oscar', presupuesto: 500000 },
-  { id: '10', fecha: '27/9/2026', numero: '3042503846', linea: 'DANTE NOVA 3', producto: 'CONJUNTOS', trafi: 'Oscar', presupuesto: 220000 },
-  { id: '11', fecha: '27/9/2026', numero: '3042504328', linea: 'DISTRIPRO 2', producto: 'CONJUNTOS', trafi: 'Oscar', presupuesto: 200000 },
-  { id: '12', fecha: '27/9/2026', numero: '3104964983', linea: 'LATIN SHOP 2', producto: 'CONJUNTOS', trafi: 'Oscar', presupuesto: 185000 },
-  { id: '13', fecha: '27/9/2026', numero: '3219434182', linea: 'CLOTHESNEW', producto: 'CONJUNTOS', trafi: 'Oscar', presupuesto: 185000 },
-  { id: '14', fecha: '27/9/2026', numero: '3043311027', linea: 'STYLE TRENDS', producto: 'CONJUNTOS', trafi: 'Oscar', presupuesto: 255000 },
-  { id: '15', fecha: '27/9/2026', numero: '3117689919', linea: 'TODO EN LINEA 1 (9919)', producto: 'CONJUNTOS', trafi: 'Oscar', presupuesto: 200000 },
-  { id: '16', fecha: '27/9/2026', numero: '3046497928', linea: 'NETCAPITAL', producto: 'CONJUNTOS', trafi: 'Oscar', presupuesto: 200000 },
-  { id: '17', fecha: '27/9/2026', numero: '3117689943', linea: 'DRISTRIPRO', producto: 'CONJUNTOS', trafi: 'Oscar', presupuesto: 200000 },
-  { id: '18', fecha: '27/9/2026', numero: '3004658319', linea: 'STYLE TRENDS 1', producto: 'CONJUNTOS', trafi: 'Oscar', presupuesto: 215000 },
-  { id: '19', fecha: '27/9/2026', numero: '3104963935', linea: 'NOVA HOME 4', producto: 'CONJUNTOS', trafi: 'Oscar', presupuesto: 140000 },
-  { id: '20', fecha: '27/9/2026', numero: '3127049437', linea: 'TIENDA EL CAMPITO', producto: 'CARPAS', trafi: 'Oscar', presupuesto: 150000 },
-  { id: '21', fecha: '27/9/2026', numero: '3006872470', linea: 'TIENDA EL CAMPITO 1', producto: 'CARPAS', trafi: 'Oscar', presupuesto: 150000 },
-  { id: '22', fecha: '27/9/2026', numero: '3006872469', linea: 'TIENDA EL CAMPITO 2', producto: 'CARPAS', trafi: 'Oscar', presupuesto: 130000 },
-  { id: '23', fecha: '27/9/2026', numero: '3106064596', linea: 'CLOTHES NEW 4', producto: 'CAMISETAS', trafi: 'Oscar', presupuesto: 330000 },
-  { id: '24', fecha: '27/9/2026', numero: '3104371164', linea: 'AXIS SHOP 4', producto: 'CAMISETAS', trafi: 'Oscar', presupuesto: 270000 },
-  { id: '25', fecha: '27/9/2026', numero: '3006864858', linea: 'TOP MARKET 1', producto: 'BOXERS CK', trafi: 'Oscar', presupuesto: 200000 },
-  { id: '26', fecha: '27/9/2026', numero: '3042327503', linea: 'RAW STREET 3', producto: 'CACHETEROS CK', trafi: 'Oscar', presupuesto: 200000 },
-  { id: '27', fecha: '27/9/2026', numero: '3115230622', linea: 'NOXA', producto: 'BOXERS NOXA', trafi: 'Oscar', presupuesto: 200000 },
-  { id: '28', fecha: '27/9/2026', numero: '3117980010', linea: 'NOXA', producto: 'BOXERS NOXA', trafi: 'Oscar', presupuesto: 100000 },
-  { id: '29', fecha: '27/9/2026', numero: '3105210297', linea: 'NOVA HOME 3', producto: 'PIJAMAS', trafi: 'Oscar', presupuesto: 200000 },
-  { id: '30', fecha: '27/9/2026', numero: '3181350330', linea: 'COMPRA MAS 3', producto: 'PIJAMAS', trafi: 'Oscar', presupuesto: 80000 },
-  { id: '31', fecha: '27/9/2026', numero: '3104965029', linea: 'COMPRA MAS 4', producto: 'PIJAMAS', trafi: 'Oscar', presupuesto: 80000 },
-  { id: '32', fecha: '27/9/2026', numero: '3181699761', linea: 'SANTA SHOP 2', producto: 'AROMATERAPIA', trafi: 'Oscar', presupuesto: 20000 },
-  { id: '33', fecha: '27/9/2026', numero: '3104965018', linea: 'SANTA SHOP 3', producto: 'AROMATERAPIA', trafi: 'Oscar', presupuesto: 20000 },
+  { id: '1', fecha: '27/9/2026', numero: '3117938167', linea: 'DRISTRI PRO 1', bpo: 'BTK', coordina: 'GOMEZ', producto: 'CAMISETAS', trafi: 'Oscar', presupuesto: 290000 },
+  { id: '2', fecha: '27/9/2026', numero: '3006865174', linea: 'VARIEDADES DIGITALES 1', bpo: 'BTK', coordina: 'GOMEZ', producto: 'CAMISETAS', trafi: 'Oscar', presupuesto: 190000 },
+  { id: '3', fecha: '27/9/2026', numero: '3117718030', linea: 'NOVA HOME', bpo: 'BTK', coordina: 'GOMEZ', producto: 'CAMISETAS', trafi: 'Oscar', presupuesto: 290000 },
+  { id: '4', fecha: '27/9/2026', numero: '3117654394', linea: 'DANTE NOVA', bpo: 'BTK', coordina: 'GOMEZ', producto: 'CAMISETAS', trafi: 'Oscar', presupuesto: 285000 },
+  { id: '5', fecha: '27/9/2026', numero: '3011674464', linea: 'CLOTHESNEW 2', bpo: 'BTK', coordina: 'GOMEZ', producto: 'CAMISETAS', trafi: 'Oscar', presupuesto: 200000 },
+  { id: '6', fecha: '27/9/2026', numero: '3233721174', linea: 'GOAL STORE 2', bpo: 'BTK', coordina: 'GOMEZ', producto: 'CAMISETAS', trafi: 'Oscar', presupuesto: 240000 },
+  { id: '7', fecha: '27/9/2026', numero: '3104964973', linea: 'LEVEL ONE 2', bpo: 'BTK', coordina: 'GOMEZ', producto: 'CAMISETAS', trafi: 'Oscar', presupuesto: 240000 },
+  { id: '8', fecha: '27/9/2026', numero: '3013622434', linea: 'AURA Y HOME 2', bpo: 'BTK', coordina: 'ALEJANDRA', producto: 'CAMISETAS', trafi: 'Oscar', presupuesto: 300000 },
+  { id: '9', fecha: '27/9/2026', numero: '3043646273', linea: 'NET CAPITAL 1', bpo: 'BTK', coordina: 'ALEJANDRA', producto: 'CAMISETAS', trafi: 'Oscar', presupuesto: 500000 },
+  { id: '10', fecha: '27/9/2026', numero: '3042503846', linea: 'DANTE NOVA 3', bpo: 'BTK', coordina: 'ANDREA', producto: 'CONJUNTOS', trafi: 'Oscar', presupuesto: 220000 },
+  { id: '11', fecha: '27/9/2026', numero: '3042504328', linea: 'DISTRIPRO 2', bpo: 'BTK', coordina: 'ANDREA', producto: 'CONJUNTOS', trafi: 'Oscar', presupuesto: 200000 },
+  { id: '12', fecha: '27/9/2026', numero: '3104964983', linea: 'LATIN SHOP 2', bpo: 'BTK', coordina: 'ANDREA', producto: 'CONJUNTOS', trafi: 'Oscar', presupuesto: 185000 },
+  { id: '13', fecha: '27/9/2026', numero: '3219434182', linea: 'CLOTHESNEW', bpo: 'BTK', coordina: 'ANDREA', producto: 'CONJUNTOS', trafi: 'Oscar', presupuesto: 185000 },
+  { id: '14', fecha: '27/9/2026', numero: '3043311027', linea: 'STYLE TRENDS', bpo: 'BTK', coordina: 'ANDREA', producto: 'CONJUNTOS', trafi: 'Oscar', presupuesto: 255000 },
+  { id: '15', fecha: '27/9/2026', numero: '3117689919', linea: 'TODO EN LINEA 1 (9919)', bpo: 'BTK', coordina: 'ANDREA', producto: 'CONJUNTOS', trafi: 'Oscar', presupuesto: 200000 },
+  { id: '16', fecha: '27/9/2026', numero: '3046497928', linea: 'NETCAPITAL', bpo: 'BTK', coordina: 'ANDREA', producto: 'CONJUNTOS', trafi: 'Oscar', presupuesto: 200000 },
+  { id: '17', fecha: '27/9/2026', numero: '3117689943', linea: 'DRISTRIPRO', bpo: 'BTK', coordina: 'ANDREA', producto: 'CONJUNTOS', trafi: 'Oscar', presupuesto: 200000 },
+  { id: '18', fecha: '27/9/2026', numero: '3004658319', linea: 'STYLE TRENDS 1', bpo: 'BTK', coordina: 'ANDREA', producto: 'CONJUNTOS', trafi: 'Oscar', presupuesto: 215000 },
+  { id: '19', fecha: '27/9/2026', numero: '3104963935', linea: 'NOVA HOME 4', bpo: 'BTK', coordina: 'ANDREA', producto: 'CONJUNTOS', trafi: 'Oscar', presupuesto: 140000 },
+  { id: '20', fecha: '27/9/2026', numero: '3127049437', linea: 'TIENDA EL CAMPITO', bpo: 'BTK', coordina: 'ALEJANDRA', producto: 'CARPAS', trafi: 'Oscar', presupuesto: 150000 },
+  { id: '21', fecha: '27/9/2026', numero: '3006872470', linea: 'TIENDA EL CAMPITO 1', bpo: 'BTK', coordina: 'ALEJANDRA', producto: 'CARPAS', trafi: 'Oscar', presupuesto: 150000 },
+  { id: '22', fecha: '27/9/2026', numero: '3006872469', linea: 'TIENDA EL CAMPITO 2', bpo: 'BTK', coordina: 'ALEJANDRA', producto: 'CARPAS', trafi: 'Oscar', presupuesto: 130000 },
+  { id: '23', fecha: '27/9/2026', numero: '3106064596', linea: 'CLOTHES NEW 4', bpo: 'BTK GR', coordina: 'ALEJANDRA', producto: 'CAMISETAS', trafi: 'Oscar', presupuesto: 330000 },
+  { id: '24', fecha: '27/9/2026', numero: '3104371164', linea: 'AXIS SHOP 4', bpo: 'BTK GR', coordina: 'ALEJANDRA', producto: 'CAMISETAS', trafi: 'Oscar', presupuesto: 270000 },
+  { id: '25', fecha: '27/9/2026', numero: '3006864858', linea: 'TOP MARKET 1', bpo: 'ELT', coordina: 'JORGE', producto: 'BOXERS CK', trafi: 'Oscar', presupuesto: 200000 },
+  { id: '26', fecha: '27/9/2026', numero: '3042327503', linea: 'RAW STREET 3', bpo: 'ELT', coordina: 'JORGE', producto: 'CACHETEROS CK', trafi: 'Oscar', presupuesto: 200000 },
+  { id: '27', fecha: '27/9/2026', numero: '3115230622', linea: 'NOXA', bpo: 'ELT', coordina: 'JORGE', producto: 'BOXERS NOXA', trafi: 'Oscar', presupuesto: 200000 },
+  { id: '28', fecha: '27/9/2026', numero: '3117980010', linea: 'NOXA', bpo: 'ELT', coordina: 'JORGE', producto: 'BOXERS NOXA', trafi: 'Oscar', presupuesto: 100000 },
+  { id: '29', fecha: '27/9/2026', numero: '3105210297', linea: 'NOVA HOME 3', bpo: 'E-HUK MEDELLIN', coordina: 'WILL', producto: 'PIJAMAS', trafi: 'Oscar', presupuesto: 200000 },
+  { id: '30', fecha: '27/9/2026', numero: '3181350330', linea: 'COMPRA MAS 3', bpo: 'E-HUK MEDELLIN', coordina: 'WILL', producto: 'PIJAMAS', trafi: 'Oscar', presupuesto: 80000 },
+  { id: '31', fecha: '27/9/2026', numero: '3104965029', linea: 'COMPRA MAS 4', bpo: 'E-HUK MEDELLIN', coordina: 'WILL', producto: 'PIJAMAS', trafi: 'Oscar', presupuesto: 80000 },
+  { id: '32', fecha: '27/9/2026', numero: '3181699761', linea: 'SANTA SHOP 2', bpo: 'E-HUK MEDELLIN', coordina: 'WILL', producto: 'AROMATERAPIA', trafi: 'Oscar', presupuesto: 20000 },
+  { id: '33', fecha: '27/9/2026', numero: '3104965018', linea: 'SANTA SHOP 3', bpo: 'E-HUK MEDELLIN', coordina: 'WILL', producto: 'AROMATERAPIA', trafi: 'Oscar', presupuesto: 20000 },
 ];
 
 const BITACORA_INICIAL: ActividadBitacora[] = [
@@ -67,23 +69,23 @@ const BITACORA_INICIAL: ActividadBitacora[] = [
 ];
 
 function App() {
-  // Persistencia con localStorage
+  // Persistencia con localStorage (actualizado con bpo y coordina)
   const [tiendas, setTiendas] = useState<Tienda[]>(() => {
-    const saved = localStorage.getItem('bitacora_tiendas');
+    const saved = localStorage.getItem('bitacora_tiendas_v2');
     return saved ? JSON.parse(saved) : TIENDAS_INICIALES;
   });
 
   const [bitacoraList, setBitacoraList] = useState<ActividadBitacora[]>(() => {
-    const saved = localStorage.getItem('bitacora_historial');
+    const saved = localStorage.getItem('bitacora_historial_v2');
     return saved ? JSON.parse(saved) : BITACORA_INICIAL;
   });
 
   useEffect(() => {
-    localStorage.setItem('bitacora_tiendas', JSON.stringify(tiendas));
+    localStorage.setItem('bitacora_tiendas_v2', JSON.stringify(tiendas));
   }, [tiendas]);
 
   useEffect(() => {
-    localStorage.setItem('bitacora_historial', JSON.stringify(bitacoraList));
+    localStorage.setItem('bitacora_historial_v2', JSON.stringify(bitacoraList));
   }, [bitacoraList]);
 
   const [searchTerm, setSearchTerm] = useState('');
@@ -92,7 +94,7 @@ function App() {
   const [extractedData, setExtractedData] = useState<Tienda[]>([]);
   const [feedback, setFeedback] = useState<string | null>(null);
 
-  // Estado para edición en línea de la tabla
+  // Estado para edición en línea
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editFormData, setEditFormData] = useState<Tienda | null>(null);
 
@@ -105,6 +107,8 @@ function App() {
     fecha: '28/9/2026',
     numero: '',
     linea: '',
+    bpo: 'BTK',
+    coordina: 'GOMEZ',
     producto: 'CAMISETAS',
     trafi: 'Oscar',
     presupuesto: 200000
@@ -130,12 +134,15 @@ function App() {
   // Lista única de productos
   const productosUnicos = ['TODOS', ...Array.from(new Set(tiendas.map(t => t.producto)))];
 
-  // Filtrado de tiendas principales
+  // Filtrado de tiendas principales incluyendo BPO y Coordina
   const tiendasFiltradas = tiendas.filter(t => {
+    const searchLower = searchTerm.toLowerCase();
     const matchesSearch = 
-      t.linea.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      t.numero.includes(searchTerm) ||
-      t.producto.toLowerCase().includes(searchTerm.toLowerCase());
+      t.linea.toLowerCase().includes(searchLower) ||
+      t.numero.includes(searchLower) ||
+      t.producto.toLowerCase().includes(searchLower) ||
+      (t.bpo && t.bpo.toLowerCase().includes(searchLower)) ||
+      (t.coordina && t.coordina.toLowerCase().includes(searchLower));
     
     const matchesProducto = selectedProducto === 'TODOS' || t.producto === selectedProducto;
 
@@ -272,6 +279,8 @@ function App() {
       fecha: '28/9/2026',
       numero: '',
       linea: '',
+      bpo: 'BTK',
+      coordina: 'GOMEZ',
       producto: 'CAMISETAS',
       trafi: 'Oscar',
       presupuesto: 200000
@@ -280,11 +289,11 @@ function App() {
     setTimeout(() => setFeedback(null), 4000);
   };
 
-  // DESCARGAR EXCEL COMPATIBLE (.csv / .xlsx con BOM)
+  // DESCARGAR EXCEL COMPATIBLE INCLUYENDO LAS 2 NUEVAS COLUMNAS (BPO Y COORDINA)
   const handleDownloadExcel = () => {
-    const headers = "FECHA;NUMERO;LINEA;PRODUCTO;TRAFI;PRESUPUESTO\n";
+    const headers = "FECHA;NUMERO;LINEA;BPO;COORDINA;PRODUCTO;TRAFI;PRESUPUESTO\n";
     const rows = tiendasFiltradas.map(t => 
-      `"${t.fecha}";"${t.numero}";"${t.linea}";"${t.producto}";"${t.trafi}";"${t.presupuesto}"`
+      `"${t.fecha}";"${t.numero}";"${t.linea}";"${t.bpo || ''}";"${t.coordina || ''}";"${t.producto}";"${t.trafi}";"${t.presupuesto}"`
     ).join("\n");
 
     const csvContent = "\uFEFF" + headers + rows;
@@ -298,18 +307,18 @@ function App() {
     link.click();
     document.body.removeChild(link);
 
-    setFeedback("✓ Archivo descargado. Ya puedes abrirlo directamente en Microsoft Excel.");
+    setFeedback("✓ Archivo Excel descargado con las 8 columnas (incluyendo BPO y COORDINA).");
     setTimeout(() => setFeedback(null), 4000);
   };
 
   // Copiar datos especificando columna o toda la tabla
-  const copyToClipboard = (type: 'all' | 'numero' | 'linea' | 'producto' | 'presupuesto') => {
+  const copyToClipboard = (type: 'all' | 'numero' | 'linea' | 'bpo' | 'coordina' | 'producto' | 'presupuesto') => {
     let text = '';
     let nombreColumna = '';
 
     if (type === 'all') {
-      const header = "FECHA\tNUMERO\tLINEA\tPRODUCTO\tTRAFI\tPRESUPUESTO\n";
-      const rows = tiendasFiltradas.map(t => `${t.fecha}\t${t.numero}\t${t.linea}\t${t.producto}\t${t.trafi}\t$${t.presupuesto.toLocaleString('es-CO')}`).join("\n");
+      const header = "FECHA\tNUMERO\tLINEA\tBPO\tCOORDINA\tPRODUCTO\tTRAFI\tPRESUPUESTO\n";
+      const rows = tiendasFiltradas.map(t => `${t.fecha}\t${t.numero}\t${t.linea}\t${t.bpo || ''}\t${t.coordina || ''}\t${t.producto}\t${t.trafi}\t$${t.presupuesto.toLocaleString('es-CO')}`).join("\n");
       text = header + rows;
       nombreColumna = "Toda la tabla";
     } else if (type === 'numero') {
@@ -318,6 +327,12 @@ function App() {
     } else if (type === 'linea') {
       text = tiendasFiltradas.map(t => t.linea).join("\n");
       nombreColumna = "Líneas / Tiendas";
+    } else if (type === 'bpo') {
+      text = tiendasFiltradas.map(t => t.bpo || '').join("\n");
+      nombreColumna = "BPO";
+    } else if (type === 'coordina') {
+      text = tiendasFiltradas.map(t => t.coordina || '').join("\n");
+      nombreColumna = "Coordina";
     } else if (type === 'producto') {
       text = tiendasFiltradas.map(t => t.producto).join("\n");
       nombreColumna = "Productos";
@@ -380,7 +395,7 @@ function App() {
             type="text" 
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            placeholder="Buscar por nombre, teléfono o producto..." 
+            placeholder="Buscar por nombre, teléfono, bpo, coordina o producto..." 
             className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-gray-50 focus:bg-white transition-all"
           />
           <div className="absolute left-3 top-2.5 text-gray-400 text-sm">
@@ -503,6 +518,18 @@ function App() {
                         📞 Solo Teléfonos
                       </button>
                       <button 
+                        onClick={() => copyToClipboard('bpo')} 
+                        className="w-full text-left px-4 py-2 hover:bg-blue-50 text-gray-700"
+                      >
+                        🏢 Solo BPO
+                      </button>
+                      <button 
+                        onClick={() => copyToClipboard('coordina')} 
+                        className="w-full text-left px-4 py-2 hover:bg-blue-50 text-gray-700"
+                      >
+                        👥 Solo Coordina
+                      </button>
+                      <button 
                         onClick={() => copyToClipboard('presupuesto')} 
                         className="w-full text-left px-4 py-2 hover:bg-blue-50 text-gray-700"
                       >
@@ -561,13 +588,13 @@ function App() {
               </div>
             </div>
 
-            {/* Tabla Principal de Tiendas con Drag-and-Drop y Botones Mover Orden */}
+            {/* Tabla Principal de Tiendas con las 2 Nuevas Columnas (BPO y COORDINA) */}
             <div className="bg-white rounded-xl border border-gray-200 shadow-xs overflow-hidden">
               <div className="px-6 py-4 border-b border-gray-200 bg-gray-50 flex justify-between items-center">
                 <h2 className="font-semibold text-gray-800 text-base">
                   Tiendas y Presupuestos {searchTerm && <span className="text-sm font-normal text-gray-500">({tiendasFiltradas.length} encontradas)</span>}
                 </h2>
-                <span className="text-xs text-gray-500 font-medium">Usa ⬆️ ⬇️ o arrastra las filas (☰) para cambiar el orden</span>
+                <span className="text-xs text-gray-500 font-medium">Formato completo de 8 columnas (incluyendo BPO y Coordina)</span>
               </div>
               
               <div className="overflow-x-auto">
@@ -575,9 +602,9 @@ function App() {
                   <thead>
                     <tr className="bg-gray-100/70 text-gray-600 text-xs uppercase tracking-wider border-b border-gray-200">
                       <th className="px-3 py-3 font-semibold text-center w-12">Orden</th>
-                      <th className="px-4 py-3 font-semibold">Fecha</th>
+                      <th className="px-3 py-3 font-semibold">Fecha</th>
                       
-                      <th className="px-4 py-3 font-semibold">
+                      <th className="px-3 py-3 font-semibold">
                         <div className="flex items-center gap-1">
                           <span>Teléfono</span>
                           <button 
@@ -590,7 +617,7 @@ function App() {
                         </div>
                       </th>
 
-                      <th className="px-4 py-3 font-semibold">
+                      <th className="px-3 py-3 font-semibold">
                         <div className="flex items-center gap-1">
                           <span>Línea / Tienda</span>
                           <button 
@@ -603,7 +630,35 @@ function App() {
                         </div>
                       </th>
 
-                      <th className="px-4 py-3 font-semibold">
+                      {/* NUEVA COLUMNA: BPO */}
+                      <th className="px-3 py-3 font-semibold">
+                        <div className="flex items-center gap-1">
+                          <span>BPO</span>
+                          <button 
+                            onClick={() => copyToClipboard('bpo')} 
+                            title="Copiar solo columna BPO"
+                            className="text-gray-400 hover:text-blue-600 text-xs p-0.5 rounded"
+                          >
+                            📋
+                          </button>
+                        </div>
+                      </th>
+
+                      {/* NUEVA COLUMNA: COORDINA */}
+                      <th className="px-3 py-3 font-semibold">
+                        <div className="flex items-center gap-1">
+                          <span>Coordina</span>
+                          <button 
+                            onClick={() => copyToClipboard('coordina')} 
+                            title="Copiar solo columna Coordina"
+                            className="text-gray-400 hover:text-blue-600 text-xs p-0.5 rounded"
+                          >
+                            📋
+                          </button>
+                        </div>
+                      </th>
+
+                      <th className="px-3 py-3 font-semibold">
                         <div className="flex items-center gap-1">
                           <span>Producto</span>
                           <button 
@@ -616,9 +671,9 @@ function App() {
                         </div>
                       </th>
 
-                      <th className="px-4 py-3 font-semibold">Trafi</th>
+                      <th className="px-3 py-3 font-semibold">Trafi</th>
 
-                      <th className="px-4 py-3 font-semibold text-right">
+                      <th className="px-3 py-3 font-semibold text-right">
                         <div className="flex items-center justify-end gap-1">
                           <span>Presupuesto</span>
                           <button 
@@ -631,7 +686,7 @@ function App() {
                         </div>
                       </th>
 
-                      <th className="px-4 py-3 font-semibold text-center">Acciones</th>
+                      <th className="px-3 py-3 font-semibold text-center">Acciones</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-200 text-gray-700">
@@ -665,6 +720,24 @@ function App() {
                                   value={editFormData.linea}
                                   onChange={(e) => setEditFormData({ ...editFormData, linea: e.target.value })}
                                   className="w-full bg-white border border-gray-300 rounded px-2 py-1 text-xs font-bold"
+                                />
+                              </td>
+                              {/* EDICIÓN BPO */}
+                              <td className="px-2 py-2">
+                                <input 
+                                  type="text" 
+                                  value={editFormData.bpo || ''}
+                                  onChange={(e) => setEditFormData({ ...editFormData, bpo: e.target.value })}
+                                  className="w-full bg-white border border-gray-300 rounded px-2 py-1 text-xs font-medium uppercase"
+                                />
+                              </td>
+                              {/* EDICIÓN COORDINA */}
+                              <td className="px-2 py-2">
+                                <input 
+                                  type="text" 
+                                  value={editFormData.coordina || ''}
+                                  onChange={(e) => setEditFormData({ ...editFormData, coordina: e.target.value })}
+                                  className="w-full bg-white border border-gray-300 rounded px-2 py-1 text-xs font-medium uppercase"
                                 />
                               </td>
                               <td className="px-2 py-2">
@@ -720,7 +793,6 @@ function App() {
                             onDrop={() => handleDrop(idx)}
                             className={`hover:bg-blue-50/50 transition-colors cursor-grab active:cursor-grabbing ${draggedIndex === idx ? 'opacity-40 bg-blue-100' : ''}`}
                           >
-                            {/* Control de Reordenamiento (Botones Up/Down + Drag Handle) */}
                             <td className="px-2 py-3 text-center whitespace-nowrap">
                               <div className="flex items-center justify-center gap-0.5">
                                 <span className="text-gray-300 font-bold text-xs mr-0.5 cursor-grab">☰</span>
@@ -743,19 +815,34 @@ function App() {
                               </div>
                             </td>
 
-                            <td className="px-4 py-3 whitespace-nowrap text-gray-500">{tienda.fecha}</td>
-                            <td className="px-4 py-3 font-mono text-xs font-medium text-gray-900">{tienda.numero}</td>
-                            <td className="px-4 py-3 font-semibold text-gray-900">{tienda.linea}</td>
-                            <td className="px-4 py-3">
+                            <td className="px-3 py-3 whitespace-nowrap text-gray-500">{tienda.fecha}</td>
+                            <td className="px-3 py-3 font-mono text-xs font-medium text-gray-900">{tienda.numero}</td>
+                            <td className="px-3 py-3 font-semibold text-gray-900">{tienda.linea}</td>
+                            
+                            {/* VALOR BPO */}
+                            <td className="px-3 py-3 font-medium text-xs">
+                              <span className="bg-blue-50 text-blue-800 border border-blue-200 px-2 py-0.5 rounded">
+                                {tienda.bpo || '-'}
+                              </span>
+                            </td>
+
+                            {/* VALOR COORDINA */}
+                            <td className="px-3 py-3 font-medium text-xs text-gray-700">
+                              <span className="bg-amber-50 text-amber-900 border border-amber-200 px-2 py-0.5 rounded font-bold">
+                                {tienda.coordina || '-'}
+                              </span>
+                            </td>
+
+                            <td className="px-3 py-3">
                               <span className="bg-gray-100 text-gray-700 text-xs px-2 py-0.5 rounded font-medium">
                                 {tienda.producto}
                               </span>
                             </td>
-                            <td className="px-4 py-3 text-gray-600">{tienda.trafi}</td>
-                            <td className="px-4 py-3 font-bold text-gray-900 text-right font-mono">
+                            <td className="px-3 py-3 text-gray-600">{tienda.trafi}</td>
+                            <td className="px-3 py-3 font-bold text-gray-900 text-right font-mono">
                               {formatMoneda(tienda.presupuesto)}
                             </td>
-                            <td className="px-4 py-3 text-center whitespace-nowrap">
+                            <td className="px-3 py-3 text-center whitespace-nowrap">
                               <button 
                                 onClick={() => handleStartEdit(tienda)}
                                 title="Modificar manualmente esta tienda"
@@ -769,7 +856,7 @@ function App() {
                       })
                     ) : (
                       <tr>
-                        <td colSpan={8} className="px-6 py-8 text-center text-gray-500">
+                        <td colSpan={10} className="px-6 py-8 text-center text-gray-500">
                           No se encontraron tiendas para los criterios seleccionados.
                         </td>
                       </tr>
@@ -786,7 +873,7 @@ function App() {
           <div className="bg-white rounded-xl border border-gray-200 p-12 text-center shadow-xs my-8">
             <div className="text-4xl mb-3 animate-spin inline-block">⏳</div>
             <h2 className="text-xl font-bold text-gray-800">Estamos leyendo tu pantallazo...</h2>
-            <p className="text-sm text-gray-500 mt-1">Identificando números, líneas y presupuestos del documento.</p>
+            <p className="text-sm text-gray-500 mt-1">Identificando números, líneas, BPO, Coordina y presupuestos del documento.</p>
           </div>
         )}
 
@@ -814,28 +901,32 @@ function App() {
               </div>
             </div>
             
-            {/* Tabla de revisión */}
+            {/* Tabla de revisión con las 8 columnas */}
             <div className="overflow-x-auto max-h-96">
               <table className="w-full text-left border-collapse text-sm">
                 <thead className="sticky top-0 bg-gray-100 text-gray-600 text-xs uppercase">
                   <tr>
-                    <th className="px-4 py-3 font-semibold">Fecha</th>
-                    <th className="px-4 py-3 font-semibold">Teléfono</th>
-                    <th className="px-4 py-3 font-semibold">Línea</th>
-                    <th className="px-4 py-3 font-semibold">Producto</th>
-                    <th className="px-4 py-3 font-semibold">Trafi</th>
-                    <th className="px-4 py-3 font-semibold text-right">Presupuesto Extraído</th>
+                    <th className="px-3 py-3 font-semibold">Fecha</th>
+                    <th className="px-3 py-3 font-semibold">Teléfono</th>
+                    <th className="px-3 py-3 font-semibold">Línea</th>
+                    <th className="px-3 py-3 font-semibold">BPO</th>
+                    <th className="px-3 py-3 font-semibold">Coordina</th>
+                    <th className="px-3 py-3 font-semibold">Producto</th>
+                    <th className="px-3 py-3 font-semibold">Trafi</th>
+                    <th className="px-3 py-3 font-semibold text-right">Presupuesto Extraído</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-200 text-gray-700">
                   {extractedData.map((row) => (
                     <tr key={row.id} className="hover:bg-blue-50/30">
-                      <td className="px-4 py-2.5 text-gray-500">{row.fecha}</td>
-                      <td className="px-4 py-2.5 font-mono text-xs">{row.numero}</td>
-                      <td className="px-4 py-2.5 font-medium">{row.linea}</td>
-                      <td className="px-4 py-2.5">{row.producto}</td>
-                      <td className="px-4 py-2.5">{row.trafi}</td>
-                      <td className="px-4 py-2.5 font-bold text-emerald-700 text-right font-mono">
+                      <td className="px-3 py-2.5 text-gray-500">{row.fecha}</td>
+                      <td className="px-3 py-2.5 font-mono text-xs">{row.numero}</td>
+                      <td className="px-3 py-2.5 font-medium">{row.linea}</td>
+                      <td className="px-3 py-2.5 text-xs font-bold text-blue-800">{row.bpo}</td>
+                      <td className="px-3 py-2.5 text-xs font-bold text-amber-800">{row.coordina}</td>
+                      <td className="px-3 py-2.5">{row.producto}</td>
+                      <td className="px-3 py-2.5">{row.trafi}</td>
+                      <td className="px-3 py-2.5 font-bold text-emerald-700 text-right font-mono">
                         {formatMoneda(row.presupuesto)}
                       </td>
                     </tr>
@@ -888,6 +979,34 @@ function App() {
                     value={newStoreData.numero}
                     onChange={(e) => setNewStoreData({ ...newStoreData, numero: e.target.value })}
                     className="w-full border border-gray-300 rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none font-mono"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-gray-700 uppercase mb-1">
+                    BPO
+                  </label>
+                  <input 
+                    type="text"
+                    placeholder="Ej: BTK / ELT"
+                    value={newStoreData.bpo}
+                    onChange={(e) => setNewStoreData({ ...newStoreData, bpo: e.target.value.toUpperCase() })}
+                    className="w-full border border-gray-300 rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none uppercase"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-bold text-gray-700 uppercase mb-1">
+                    Coordina
+                  </label>
+                  <input 
+                    type="text"
+                    placeholder="Ej: GOMEZ / ANDREA"
+                    value={newStoreData.coordina}
+                    onChange={(e) => setNewStoreData({ ...newStoreData, coordina: e.target.value.toUpperCase() })}
+                    className="w-full border border-gray-300 rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none uppercase"
                   />
                 </div>
 
