@@ -11,6 +11,13 @@ interface Tienda {
   presupuesto: number;
 }
 
+interface ActividadBitacora {
+  id: string;
+  fecha: string;
+  tiendaLinea: string;
+  descripcion: string;
+}
+
 const TIENDAS_INICIALES: Tienda[] = [
   { id: '1', fecha: '27/9/2026', numero: '3117938167', linea: 'DRISTRI PRO 1', producto: 'CAMISETAS', trafi: 'Oscar', presupuesto: 290000 },
   { id: '2', fecha: '27/9/2026', numero: '3006865174', linea: 'VARIEDADES DIGITALES 1', producto: 'CAMISETAS', trafi: 'Oscar', presupuesto: 190000 },
@@ -50,20 +57,41 @@ const TIENDAS_INICIALES: Tienda[] = [
 function App() {
   const [tiendas, setTiendas] = useState<Tienda[]>(TIENDAS_INICIALES);
   const [searchTerm, setSearchTerm] = useState('');
+  const [selectedProducto, setSelectedProducto] = useState<string>('TODOS');
   const [uploadState, setUploadState] = useState<'idle' | 'reading' | 'reviewing' | 'confirmed'>('idle');
   const [extractedData, setExtractedData] = useState<Tienda[]>([]);
   const [feedback, setFeedback] = useState<string | null>(null);
-  
+
+  // Estado para el modal de Bitácora
+  const [showBitacoraModal, setShowBitacoraModal] = useState(false);
+  const [selectedTiendaBitacora, setSelectedTiendaBitacora] = useState('');
+  const [actividadTexto, setActividadTexto] = useState('');
+  const [bitacoraList, setBitacoraList] = useState<ActividadBitacora[]>([
+    { id: '1', fecha: '28 Sep', tiendaLinea: 'TOP MARKET 1', descripcion: 'Se cambió creativo de campaña.' },
+    { id: '2', fecha: '27 Sep', tiendaLinea: 'NOVA HOME', descripcion: 'Se montó campaña de WhatsApp.' }
+  ]);
+
+  // Estado para menú de Copiar
+  const [showCopyMenu, setShowCopyMenu] = useState(false);
+
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Filtrado en tiempo real por Nombre/Línea o Teléfono
-  const tiendasFiltradas = tiendas.filter(t => 
-    t.linea.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    t.numero.includes(searchTerm) ||
-    t.producto.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  // Obtener lista única de productos para los botones de filtro
+  const productosUnicos = ['TODOS', ...Array.from(new Set(tiendas.map(t => t.producto)))];
 
-  const presupuestoTotal = tiendas.reduce((acc, t) => acc + t.presupuesto, 0);
+  // Filtrado combinado por búsqueda general y por botón de producto
+  const tiendasFiltradas = tiendas.filter(t => {
+    const matchesSearch = 
+      t.linea.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      t.numero.includes(searchTerm) ||
+      t.producto.toLowerCase().includes(searchTerm.toLowerCase());
+    
+    const matchesProducto = selectedProducto === 'TODOS' || t.producto === selectedProducto;
+
+    return matchesSearch && matchesProducto;
+  });
+
+  const presupuestoTotal = tiendasFiltradas.reduce((acc, t) => acc + t.presupuesto, 0);
 
   const formatMoneda = (monto: number) => {
     return new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', maximumFractionDigits: 0 }).format(monto);
@@ -76,8 +104,6 @@ function App() {
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
       setUploadState('reading');
-      
-      // Simular procesamiento del pantallazo extrayendo las 33 tiendas reales del documento
       setTimeout(() => {
         setExtractedData(TIENDAS_INICIALES);
         setUploadState('reviewing');
@@ -95,12 +121,53 @@ function App() {
     }, 4000);
   };
 
-  const handleCopyData = () => {
-    const header = "FECHA\tNUMERO\tLINEA\tPRODUCTO\tTRAFI\tPRESUPUESTO\n";
-    const rows = tiendas.map(t => `${t.fecha}\t${t.numero}\t${t.linea}\t${t.producto}\t${t.trafi}\t$${t.presupuesto.toLocaleString('es-CO')}`).join("\n");
-    navigator.clipboard.writeText(header + rows);
+  // Copiar datos especificando columna o toda la tabla
+  const copyToClipboard = (type: 'all' | 'numero' | 'linea' | 'producto' | 'presupuesto') => {
+    let text = '';
+    let nombreColumna = '';
 
-    setFeedback("✓ Datos copiados. Ya puedes pegarlos en Excel o Google Sheets.");
+    if (type === 'all') {
+      const header = "FECHA\tNUMERO\tLINEA\tPRODUCTO\tTRAFI\tPRESUPUESTO\n";
+      const rows = tiendasFiltradas.map(t => `${t.fecha}\t${t.numero}\t${t.linea}\t${t.producto}\t${t.trafi}\t$${t.presupuesto.toLocaleString('es-CO')}`).join("\n");
+      text = header + rows;
+      nombreColumna = "Toda la tabla";
+    } else if (type === 'numero') {
+      text = tiendasFiltradas.map(t => t.numero).join("\n");
+      nombreColumna = "Teléfonos";
+    } else if (type === 'linea') {
+      text = tiendasFiltradas.map(t => t.linea).join("\n");
+      nombreColumna = "Líneas / Tiendas";
+    } else if (type === 'producto') {
+      text = tiendasFiltradas.map(t => t.producto).join("\n");
+      nombreColumna = "Productos";
+    } else if (type === 'presupuesto') {
+      text = tiendasFiltradas.map(t => `$${t.presupuesto.toLocaleString('es-CO')}`).join("\n");
+      nombreColumna = "Presupuestos";
+    }
+
+    navigator.clipboard.writeText(text);
+    setShowCopyMenu(false);
+    setFeedback(`✓ Datos copiados (${nombreColumna}). Ya puedes pegarlos en Excel o Google Sheets.`);
+    setTimeout(() => setFeedback(null), 4000);
+  };
+
+  // Guardar actividad en Bitácora
+  const handleGuardarActividad = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!actividadTexto.trim()) return;
+
+    const nuevaActividad: ActividadBitacora = {
+      id: Date.now().toString(),
+      fecha: 'Hoy',
+      tiendaLinea: selectedTiendaBitacora || 'General',
+      descripcion: actividadTexto
+    };
+
+    setBitacoraList([nuevaActividad, ...bitacoraList]);
+    setShowBitacoraModal(false);
+    setActividadTexto('');
+    setSelectedTiendaBitacora('');
+    setFeedback("✓ Actividad registrada en la bitácora.");
     setTimeout(() => setFeedback(null), 4000);
   };
 
@@ -109,7 +176,7 @@ function App() {
       {/* Navbar con Buscador */}
       <header className="bg-white border-b border-gray-200 px-6 py-4 flex flex-col md:flex-row md:items-center justify-between gap-4 sticky top-0 z-10 shadow-xs">
         <div className="flex items-center gap-3">
-          <div className="bg-blue-600 text-white w-9 h-9 rounded-lg flex items-center justify-center font-bold text-lg">
+          <div className="bg-blue-600 text-white w-9 h-9 rounded-lg flex items-center justify-center font-bold text-lg shadow-xs">
             B
           </div>
           <div>
@@ -157,59 +224,133 @@ function App() {
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-xs">
                 <p className="text-xs text-gray-500 font-semibold uppercase tracking-wider">Total Tiendas</p>
-                <p className="text-2xl font-bold text-gray-900 mt-1">{tiendas.length}</p>
+                <p className="text-2xl font-bold text-gray-900 mt-1">{tiendasFiltradas.length}</p>
               </div>
               <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-xs">
-                <p className="text-xs text-gray-500 font-semibold uppercase tracking-wider">Presupuesto Total</p>
+                <p className="text-xs text-gray-500 font-semibold uppercase tracking-wider">Presupuesto Actual</p>
                 <p className="text-2xl font-bold text-blue-600 mt-1">{formatMoneda(presupuestoTotal)}</p>
               </div>
               <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-xs">
                 <p className="text-xs text-gray-500 font-semibold uppercase tracking-wider">Última Actualización</p>
-                <p className="text-base font-semibold text-gray-800 mt-1">Hoy, 27 Sep 2026</p>
+                <p className="text-base font-semibold text-gray-800 mt-1">Hoy, 28 Sep 2026</p>
               </div>
               <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-xs flex flex-col justify-center">
-                <p className="text-xs text-gray-500 font-semibold uppercase tracking-wider">Acción Rápida</p>
-                <button className="mt-1 text-sm text-blue-600 font-bold hover:text-blue-800 text-left flex items-center gap-1">
-                  + Agregar tienda
+                <p className="text-xs text-gray-500 font-semibold uppercase tracking-wider">Bitácora Rápida</p>
+                <button 
+                  onClick={() => setShowBitacoraModal(true)}
+                  className="mt-1 text-sm text-blue-600 font-bold hover:text-blue-800 text-left flex items-center gap-1"
+                >
+                  + Registrar actividad
                 </button>
               </div>
             </div>
 
-            {/* Acciones Principales en Lenguaje Natural */}
-            <div className="flex flex-wrap gap-3">
-              <input 
-                type="file" 
-                accept="image/*" 
-                className="hidden" 
-                ref={fileInputRef} 
-                onChange={handleFileChange} 
-              />
-              <button 
-                onClick={handleUploadClick}
-                className="bg-blue-600 text-white px-5 py-2.5 rounded-lg font-medium hover:bg-blue-700 transition-colors shadow-xs flex items-center gap-2 text-sm"
-              >
-                📷 Subir pantallazo
-              </button>
-              <button 
-                onClick={handleCopyData}
-                className="bg-white border border-gray-300 text-gray-700 px-5 py-2.5 rounded-lg font-medium hover:bg-gray-50 transition-colors shadow-xs flex items-center gap-2 text-sm"
-              >
-                📋 Copiar datos
-              </button>
-              <button 
-                className="bg-white border border-gray-300 text-gray-700 px-5 py-2.5 rounded-lg font-medium hover:bg-gray-50 transition-colors shadow-xs flex items-center gap-2 text-sm"
-              >
-                📝 Agregar a bitácora
-              </button>
+            {/* Acciones Principales y Menú Desplegable de Copiado */}
+            <div className="flex flex-wrap gap-3 items-center justify-between">
+              <div className="flex flex-wrap gap-3">
+                <input 
+                  type="file" 
+                  accept="image/*" 
+                  className="hidden" 
+                  ref={fileInputRef} 
+                  onChange={handleFileChange} 
+                />
+                <button 
+                  onClick={handleUploadClick}
+                  className="bg-blue-600 text-white px-5 py-2.5 rounded-lg font-medium hover:bg-blue-700 transition-colors shadow-xs flex items-center gap-2 text-sm"
+                >
+                  📷 Subir pantallazo
+                </button>
+
+                {/* Botón Copiar con Opciones de Columna */}
+                <div className="relative">
+                  <button 
+                    onClick={() => setShowCopyMenu(!showCopyMenu)}
+                    className="bg-white border border-gray-300 text-gray-700 px-5 py-2.5 rounded-lg font-medium hover:bg-gray-50 transition-colors shadow-xs flex items-center gap-2 text-sm"
+                  >
+                    📋 Copiar datos ▼
+                  </button>
+
+                  {showCopyMenu && (
+                    <div className="absolute left-0 mt-1 w-56 bg-white rounded-lg border border-gray-200 shadow-lg z-20 py-1 text-sm">
+                      <button 
+                        onClick={() => copyToClipboard('all')} 
+                        className="w-full text-left px-4 py-2 hover:bg-blue-50 font-medium text-gray-800 border-b border-gray-100"
+                      >
+                        📋 Toda la tabla
+                      </button>
+                      <button 
+                        onClick={() => copyToClipboard('linea')} 
+                        className="w-full text-left px-4 py-2 hover:bg-blue-50 text-gray-700"
+                      >
+                        🏷️ Solo nombres de Tiendas
+                      </button>
+                      <button 
+                        onClick={() => copyToClipboard('numero')} 
+                        className="w-full text-left px-4 py-2 hover:bg-blue-50 text-gray-700"
+                      >
+                        📞 Solo Teléfonos
+                      </button>
+                      <button 
+                        onClick={() => copyToClipboard('presupuesto')} 
+                        className="w-full text-left px-4 py-2 hover:bg-blue-50 text-gray-700"
+                      >
+                        💵 Solo Presupuestos
+                      </button>
+                      <button 
+                        onClick={() => copyToClipboard('producto')} 
+                        className="w-full text-left px-4 py-2 hover:bg-blue-50 text-gray-700"
+                      >
+                        👕 Solo Productos
+                      </button>
+                    </div>
+                  )}
+                </div>
+
+                <button 
+                  onClick={() => setShowBitacoraModal(true)}
+                  className="bg-white border border-gray-300 text-gray-700 px-5 py-2.5 rounded-lg font-medium hover:bg-gray-50 transition-colors shadow-xs flex items-center gap-2 text-sm"
+                >
+                  📝 Agregar a bitácora
+                </button>
+              </div>
+
+              {/* Historial rápido de bitácora reciente */}
+              {bitacoraList.length > 0 && (
+                <div className="text-xs text-gray-500 bg-white border border-gray-200 px-3 py-1.5 rounded-lg shadow-xs flex items-center gap-2">
+                  <span className="font-semibold text-gray-700">Bitácora reciente:</span>
+                  <span className="truncate max-w-xs text-gray-600">[{bitacoraList[0].tiendaLinea}] {bitacoraList[0].descripcion}</span>
+                </div>
+              )}
             </div>
 
-            {/* Tabla Principal de Tiendas */}
+            {/* FILTROS POR PRODUCTOS (Pills táctiles) */}
+            <div className="bg-white p-3 rounded-xl border border-gray-200 shadow-xs space-y-2">
+              <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider block">Filtro por Producto:</span>
+              <div className="flex flex-wrap gap-1.5">
+                {productosUnicos.map((prod) => (
+                  <button
+                    key={prod}
+                    onClick={() => setSelectedProducto(prod)}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                      selectedProducto === prod
+                        ? 'bg-blue-600 text-white shadow-xs font-bold'
+                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                    }`}
+                  >
+                    {prod}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Tabla Principal de Tiendas con Copiado de Columna directo en el Header */}
             <div className="bg-white rounded-xl border border-gray-200 shadow-xs overflow-hidden">
               <div className="px-6 py-4 border-b border-gray-200 bg-gray-50 flex justify-between items-center">
                 <h2 className="font-semibold text-gray-800 text-base">
                   Tiendas y Presupuestos {searchTerm && <span className="text-sm font-normal text-gray-500">({tiendasFiltradas.length} encontradas)</span>}
                 </h2>
-                <span className="text-xs text-gray-500 font-medium">Formato compatible con Excel</span>
+                <span className="text-xs text-gray-500 font-medium">Haz clic en 📋 en la cabecera para copiar esa columna</span>
               </div>
               
               <div className="overflow-x-auto">
@@ -217,11 +358,64 @@ function App() {
                   <thead>
                     <tr className="bg-gray-100/70 text-gray-600 text-xs uppercase tracking-wider border-b border-gray-200">
                       <th className="px-4 py-3 font-semibold">Fecha</th>
-                      <th className="px-4 py-3 font-semibold">Teléfono</th>
-                      <th className="px-4 py-3 font-semibold">Línea / Tienda</th>
-                      <th className="px-4 py-3 font-semibold">Producto</th>
+                      
+                      {/* Botón copiar columna Teléfono */}
+                      <th className="px-4 py-3 font-semibold">
+                        <div className="flex items-center gap-1">
+                          <span>Teléfono</span>
+                          <button 
+                            onClick={() => copyToClipboard('numero')} 
+                            title="Copiar solo columna Teléfonos"
+                            className="text-gray-400 hover:text-blue-600 text-xs p-0.5 rounded"
+                          >
+                            📋
+                          </button>
+                        </div>
+                      </th>
+
+                      {/* Botón copiar columna Línea */}
+                      <th className="px-4 py-3 font-semibold">
+                        <div className="flex items-center gap-1">
+                          <span>Línea / Tienda</span>
+                          <button 
+                            onClick={() => copyToClipboard('linea')} 
+                            title="Copiar solo columna Tiendas"
+                            className="text-gray-400 hover:text-blue-600 text-xs p-0.5 rounded"
+                          >
+                            📋
+                          </button>
+                        </div>
+                      </th>
+
+                      {/* Botón copiar columna Producto */}
+                      <th className="px-4 py-3 font-semibold">
+                        <div className="flex items-center gap-1">
+                          <span>Producto</span>
+                          <button 
+                            onClick={() => copyToClipboard('producto')} 
+                            title="Copiar solo columna Productos"
+                            className="text-gray-400 hover:text-blue-600 text-xs p-0.5 rounded"
+                          >
+                            📋
+                          </button>
+                        </div>
+                      </th>
+
                       <th className="px-4 py-3 font-semibold">Trafi</th>
-                      <th className="px-4 py-3 font-semibold text-right">Presupuesto</th>
+
+                      {/* Botón copiar columna Presupuesto */}
+                      <th className="px-4 py-3 font-semibold text-right">
+                        <div className="flex items-center justify-end gap-1">
+                          <span>Presupuesto</span>
+                          <button 
+                            onClick={() => copyToClipboard('presupuesto')} 
+                            title="Copiar solo columna Presupuestos"
+                            className="text-gray-400 hover:text-blue-600 text-xs p-0.5 rounded"
+                          >
+                            📋
+                          </button>
+                        </div>
+                      </th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-200 text-gray-700">
@@ -245,7 +439,7 @@ function App() {
                     ) : (
                       <tr>
                         <td colSpan={6} className="px-6 py-8 text-center text-gray-500">
-                          No se encontraron tiendas con el término "<span className="font-semibold">{searchTerm}</span>"
+                          No se encontraron tiendas para los criterios seleccionados.
                         </td>
                       </tr>
                     )}
@@ -289,7 +483,7 @@ function App() {
               </div>
             </div>
             
-            {/* Tabla de revisión con los datos reales */}
+            {/* Tabla de revisión */}
             <div className="overflow-x-auto max-h-96">
               <table className="w-full text-left border-collapse text-sm">
                 <thead className="sticky top-0 bg-gray-100 text-gray-600 text-xs uppercase">
@@ -322,6 +516,74 @@ function App() {
         )}
 
       </main>
+
+      {/* MODAL SENCILLO DE BITÁCORA (Principio 12: Sin formularios largos) */}
+      {showBitacoraModal && (
+        <div className="fixed inset-0 bg-gray-900/50 backdrop-blur-xs flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-2xl border border-gray-200 shadow-xl max-w-md w-full p-6 space-y-4 animate-scale-in">
+            <div className="flex justify-between items-center border-b border-gray-100 pb-3">
+              <h3 className="text-lg font-bold text-gray-900">📝 Registrar en Bitácora</h3>
+              <button 
+                onClick={() => setShowBitacoraModal(false)}
+                className="text-gray-400 hover:text-gray-600 text-lg"
+              >
+                ✕
+              </button>
+            </div>
+
+            <form onSubmit={handleGuardarActividad} className="space-y-4">
+              <div>
+                <label className="block text-xs font-semibold text-gray-600 uppercase mb-1">
+                  Tienda / Línea (Opcional)
+                </label>
+                <select
+                  value={selectedTiendaBitacora}
+                  onChange={(e) => setSelectedTiendaBitacora(e.target.value)}
+                  className="w-full border border-gray-300 rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none bg-gray-50"
+                >
+                  <option value="">-- Seleccionar tienda --</option>
+                  {tiendas.map((t) => (
+                    <option key={t.id} value={t.linea}>
+                      {t.linea} ({t.numero})
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-gray-600 uppercase mb-1">
+                  ¿Qué hiciste?
+                </label>
+                <textarea
+                  required
+                  rows={3}
+                  value={actividadTexto}
+                  onChange={(e) => setActividadTexto(e.target.value)}
+                  placeholder="Ej: Se cambió creativo de campaña / Se ajustó presupuesto..."
+                  className="w-full border border-gray-300 rounded-lg p-3 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                ></textarea>
+              </div>
+
+              <div className="flex justify-end gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setShowBitacoraModal(false)}
+                  className="px-4 py-2 text-sm font-medium text-gray-600 hover:bg-gray-100 rounded-lg"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  className="px-5 py-2 text-sm font-bold bg-blue-600 text-white rounded-lg hover:bg-blue-700 shadow-xs"
+                >
+                  Guardar actividad
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
     </div>
   )
 }
