@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react'
 
-// Estructura basada en los datos reales del pantallazo (con bpo y coordina)
+// Estructura basada en los datos reales del pantallazo
 interface Tienda {
   id: string;
   fecha: string;
@@ -17,7 +17,7 @@ type Responsable = 'OSCAR' | 'MATEO' | 'WILLINTONG';
 
 interface ActividadBitacora {
   id: string;
-  fecha: string;
+  fecha: string; // YYYY-MM-DD o texto formateado
   tiendaLinea: string;
   producto: string;
   responsable: Responsable;
@@ -63,9 +63,9 @@ const TIENDAS_INICIALES: Tienda[] = [
 ];
 
 const BITACORA_INICIAL: ActividadBitacora[] = [
-  { id: '1', fecha: '28 Sep 2026 - 14:15', tiendaLinea: 'TOP MARKET 1', producto: 'BOXERS CK', responsable: 'OSCAR', descripcion: 'Se cambió creativo de campaña principal.' },
-  { id: '2', fecha: '27 Sep 2026 - 09:30', tiendaLinea: 'NOVA HOME', producto: 'CAMISETAS', responsable: 'MATEO', descripcion: 'Se montó campaña de WhatsApp.' },
-  { id: '3', fecha: '26 Sep 2026 - 16:45', tiendaLinea: 'DANTE NOVA', producto: 'CAMISETAS', responsable: 'WILLINTONG', descripcion: 'Aumento de presupuesto semanal.' }
+  { id: '1', fecha: '28/09/2026', tiendaLinea: 'TOP MARKET 1', producto: 'BOXERS CK', responsable: 'OSCAR', descripcion: 'Se cambió creativo de campaña principal.' },
+  { id: '2', fecha: '27/09/2026', tiendaLinea: 'NOVA HOME', producto: 'CAMISETAS', responsable: 'MATEO', descripcion: 'Se montó campaña de WhatsApp.' },
+  { id: '3', fecha: '26/09/2026', tiendaLinea: 'DANTE NOVA', producto: 'CAMISETAS', responsable: 'WILLINTONG', descripcion: 'Aumento de presupuesto semanal.' }
 ];
 
 function App() {
@@ -94,7 +94,7 @@ function App() {
   const [extractedData, setExtractedData] = useState<Tienda[]>([]);
   const [feedback, setFeedback] = useState<string | null>(null);
 
-  // Estado para edición en línea
+  // Estado para edición en línea de la tabla principal
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editFormData, setEditFormData] = useState<Tienda | null>(null);
 
@@ -118,20 +118,25 @@ function App() {
   const [showBitacoraModal, setShowBitacoraModal] = useState(false);
   const [showHistorialModal, setShowHistorialModal] = useState(false);
   
-  // Campo Fecha en la Bitácora (por defecto fecha actual ISO YYYY-MM-DD)
+  // Campo Fecha en la Bitácora
   const todayISO = new Date().toISOString().split('T')[0];
   const [fechaBitacoraInput, setFechaBitacoraInput] = useState(todayISO);
 
-  // Autocomplete / Combobox didáctico de tiendas para la Bitácora
+  // Autocomplete didáctico de tiendas para la Bitácora
   const [tiendaInputText, setTiendaInputText] = useState('');
   const [showStoreDropdown, setShowStoreDropdown] = useState(false);
   const [responsableBitacora, setResponsableBitacora] = useState<Responsable>('OSCAR');
   const [actividadTexto, setActividadTexto] = useState('');
 
-  // Filtros internos del Historial de Bitácora
+  // ESTADO PARA EDICIÓN Y ELIMINACIÓN DE REGISTROS DE BITÁCORA
+  const [editingBitacoraId, setEditingBitacoraId] = useState<string | null>(null);
+  const [editingBitacoraData, setEditingBitacoraData] = useState<ActividadBitacora | null>(null);
+
+  // FILTROS DEL HISTORIAL DE BITÁCORA (INCLUYENDO FECHA)
   const [bitacoraSearch, setBitacoraSearch] = useState('');
   const [bitacoraProductoFilter, setBitacoraProductoFilter] = useState('TODOS');
   const [bitacoraResponsableFilter, setBitacoraResponsableFilter] = useState('TODOS');
+  const [bitacoraFechaFilter, setBitacoraFechaFilter] = useState(''); // Filtro de fecha en bitácora
 
   // Estado para menú de Copiar
   const [showCopyMenu, setShowCopyMenu] = useState(false);
@@ -210,7 +215,7 @@ function App() {
     setDraggedIndex(null);
   };
 
-  // Filtrado de entradas de bitácora
+  // FILTRADO COMPLETO DE BITÁCORA (BÚSQUEDA + PRODUCTO + RESPONSABLE + FECHA)
   const bitacoraFiltrada = bitacoraList.filter(item => {
     const searchLower = bitacoraSearch.toLowerCase();
     const matchesSearch = 
@@ -221,8 +226,16 @@ function App() {
 
     const matchesProducto = bitacoraProductoFilter === 'TODOS' || item.producto === bitacoraProductoFilter;
     const matchesResponsable = bitacoraResponsableFilter === 'TODOS' || item.responsable === bitacoraResponsableFilter;
+    
+    // Filtrado por Fecha si hay seleccionada
+    let matchesFecha = true;
+    if (bitacoraFechaFilter) {
+      const [y, m, d] = bitacoraFechaFilter.split('-');
+      const fechaBuscada = `${d}/${m}/${y}`;
+      matchesFecha = item.fecha.includes(fechaBuscada) || item.fecha.includes(bitacoraFechaFilter);
+    }
 
-    return matchesSearch && matchesProducto && matchesResponsable;
+    return matchesSearch && matchesProducto && matchesResponsable && matchesFecha;
   });
 
   const presupuestoTotal = tiendasFiltradas.reduce((acc, t) => acc + t.presupuesto, 0);
@@ -255,13 +268,13 @@ function App() {
     }, 4000);
   };
 
-  // Iniciar edición manual
+  // Iniciar edición manual de tienda
   const handleStartEdit = (tienda: Tienda) => {
     setEditingId(tienda.id);
     setEditFormData({ ...tienda });
   };
 
-  // Guardar edición manual
+  // Guardar edición manual de tienda
   const handleSaveEdit = () => {
     if (!editFormData) return;
     setTiendas(tiendas.map(t => t.id === editFormData.id ? editFormData : t));
@@ -271,10 +284,32 @@ function App() {
     setTimeout(() => setFeedback(null), 3500);
   };
 
-  // Cancelar edición
+  // Cancelar edición de tienda
   const handleCancelEdit = () => {
     setEditingId(null);
     setEditFormData(null);
+  };
+
+  // ELIMINAR REGISTRO DE BITÁCORA
+  const handleDeleteBitacora = (id: string) => {
+    setBitacoraList(bitacoraList.filter(item => item.id !== id));
+    setFeedback("✓ Registro eliminado de la bitácora.");
+    setTimeout(() => setFeedback(null), 3000);
+  };
+
+  // EDITAR REGISTRO DE BITÁCORA
+  const handleStartEditBitacora = (act: ActividadBitacora) => {
+    setEditingBitacoraId(act.id);
+    setEditingBitacoraData({ ...act });
+  };
+
+  const handleSaveEditBitacora = () => {
+    if (!editingBitacoraData) return;
+    setBitacoraList(bitacoraList.map(b => b.id === editingBitacoraData.id ? editingBitacoraData : b));
+    setEditingBitacoraId(null);
+    setEditingBitacoraData(null);
+    setFeedback("✓ Registro de bitácora actualizado.");
+    setTimeout(() => setFeedback(null), 3500);
   };
 
   // Guardar nueva tienda manual
@@ -361,12 +396,11 @@ function App() {
     setTimeout(() => setFeedback(null), 4000);
   };
 
-  // Guardar actividad en Bitácora (con Fecha elegida + Autocomplete Didáctico)
+  // Guardar actividad en Bitácora
   const handleGuardarActividad = (e: React.FormEvent) => {
     e.preventDefault();
     if (!actividadTexto.trim()) return;
 
-    // Formatear la fecha elegida por el usuario
     const [year, month, day] = fechaBitacoraInput.split('-');
     const fechaPersonalizada = `${day}/${month}/${year}`;
 
@@ -1082,7 +1116,7 @@ function App() {
         </div>
       )}
 
-      {/* MODAL REGISTRAR ACTIVIDAD EN BITÁCORA (MEJORADO CON COMBOBOX DIDÁCTICO Y SELECCIÓN DE FECHA) */}
+      {/* MODAL REGISTRAR ACTIVIDAD EN BITÁCORA */}
       {showBitacoraModal && (
         <div className="fixed inset-0 bg-gray-900/50 backdrop-blur-xs flex items-center justify-center p-4 z-50">
           <div className="bg-white rounded-2xl border border-gray-200 shadow-xl max-w-md w-full p-6 space-y-4">
@@ -1120,7 +1154,7 @@ function App() {
                 </div>
               </div>
 
-              {/* SELECCIÓN / SELECCIONADOR DE FECHA DE LA ACTIVIDAD */}
+              {/* SELECCIÓN DE FECHA DE LA ACTIVIDAD */}
               <div>
                 <label className="block text-xs font-bold text-gray-700 uppercase mb-1">
                   📅 Fecha de la actividad *
@@ -1134,7 +1168,7 @@ function App() {
                 />
               </div>
 
-              {/* BUSCADOR DE TIENDA DIDÁCTICO (COMBOBOX INTERACTIVO QUE PERMITE ESCRIBIR Y BUSCAR) */}
+              {/* BUSCADOR DE TIENDA DIDÁCTICO */}
               <div className="relative">
                 <label className="block text-xs font-bold text-gray-700 uppercase mb-1">
                   🏬 Tienda / Línea (Escribe para buscar o ingresar)
@@ -1166,7 +1200,6 @@ function App() {
                   )}
                 </div>
 
-                {/* Lista desplegable didáctica de sugerencias */}
                 {showStoreDropdown && tiendasAutocompletar.length > 0 && (
                   <div className="absolute left-0 right-0 mt-1 max-h-48 overflow-y-auto bg-white border border-gray-200 rounded-lg shadow-lg z-30 py-1 text-xs divide-y divide-gray-100">
                     {tiendasAutocompletar.map((t) => (
@@ -1225,7 +1258,7 @@ function App() {
         </div>
       )}
 
-      {/* MODAL HISTORIAL DE BITÁCORA */}
+      {/* MODAL HISTORIAL DE BITÁCORA CON EDICIÓN, ELIMINACIÓN Y FILTRO POR FECHA */}
       {showHistorialModal && (
         <div className="fixed inset-0 bg-gray-900/50 backdrop-blur-xs flex items-center justify-center p-4 z-50">
           <div className="bg-white rounded-2xl border border-gray-200 shadow-xl max-w-3xl w-full p-6 space-y-4">
@@ -1238,27 +1271,51 @@ function App() {
                 </span>
               </div>
               <button 
-                onClick={() => setShowHistorialModal(false)}
+                onClick={() => {
+                  setShowHistorialModal(false);
+                  setEditingBitacoraId(null);
+                }}
                 className="text-gray-400 hover:text-gray-600 text-lg"
               >
                 ✕
               </button>
             </div>
 
-            {/* BUSCADOR Y FILTROS DE BITÁCORA */}
+            {/* CONTROLES DE BUSCADOR Y FILTROS INCLUYENDO FILTRO DE FECHA */}
             <div className="space-y-3 bg-gray-50 p-3 rounded-xl border border-gray-200">
-              <div className="relative">
-                <input 
-                  type="text"
-                  value={bitacoraSearch}
-                  onChange={(e) => setBitacoraSearch(e.target.value)}
-                  placeholder="Buscar en bitácora por nota, tienda o responsable..."
-                  className="w-full pl-9 pr-4 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none bg-white"
-                />
-                <span className="absolute left-3 top-2.5 text-gray-400 text-sm">🔍</span>
-                {bitacoraSearch && (
-                  <button onClick={() => setBitacoraSearch('')} className="absolute right-3 top-2.5 text-xs text-gray-400 hover:text-gray-600">✕</button>
-                )}
+              <div className="flex flex-col md:flex-row gap-2">
+                <div className="relative flex-1">
+                  <input 
+                    type="text"
+                    value={bitacoraSearch}
+                    onChange={(e) => setBitacoraSearch(e.target.value)}
+                    placeholder="Buscar por nota, tienda o responsable..."
+                    className="w-full pl-9 pr-4 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none bg-white"
+                  />
+                  <span className="absolute left-3 top-2.5 text-gray-400 text-sm">🔍</span>
+                  {bitacoraSearch && (
+                    <button onClick={() => setBitacoraSearch('')} className="absolute right-3 top-2.5 text-xs text-gray-400 hover:text-gray-600">✕</button>
+                  )}
+                </div>
+
+                {/* NUEVO FILTRO POR FECHA ESPECÍFICA */}
+                <div className="flex items-center gap-1">
+                  <span className="text-xs font-bold text-gray-600">📅 Fecha:</span>
+                  <input 
+                    type="date"
+                    value={bitacoraFechaFilter}
+                    onChange={(e) => setBitacoraFechaFilter(e.target.value)}
+                    className="border border-gray-300 rounded-lg p-1.5 text-xs font-medium bg-white"
+                  />
+                  {bitacoraFechaFilter && (
+                    <button 
+                      onClick={() => setBitacoraFechaFilter('')}
+                      className="text-xs text-gray-500 hover:text-gray-700 underline px-1"
+                    >
+                      Limpiar
+                    </button>
+                  )}
+                </div>
               </div>
 
               <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 text-xs">
@@ -1294,36 +1351,112 @@ function App() {
               </div>
             </div>
 
-            {/* Lista de Registros Filtrados */}
+            {/* Lista de Registros Filtrados con Edición y Eliminación */}
             <div className="max-h-80 overflow-y-auto space-y-3 pr-1">
               {bitacoraFiltrada.length > 0 ? (
-                bitacoraFiltrada.map((act) => (
-                  <div key={act.id} className="p-4 rounded-xl border border-gray-200 bg-white hover:border-blue-300 hover:shadow-xs transition-all space-y-2">
-                    <div className="flex flex-wrap justify-between items-center text-xs gap-2">
-                      <div className="flex items-center gap-2">
-                        <span className="font-black bg-blue-600 text-white px-2 py-0.5 rounded text-[10px] tracking-wide">
-                          👤 {act.responsable}
-                        </span>
+                bitacoraFiltrada.map((act) => {
+                  const isEditingThisBitacora = editingBitacoraId === act.id;
 
-                        <span className="font-bold text-gray-800 bg-gray-100 px-2 py-0.5 rounded border border-gray-200">
-                          {act.tiendaLinea}
-                        </span>
+                  if (isEditingThisBitacora && editingBitacoraData) {
+                    return (
+                      <div key={act.id} className="p-4 rounded-xl border-2 border-blue-400 bg-blue-50/50 space-y-3">
+                        <div className="grid grid-cols-2 gap-2 text-xs">
+                          <div>
+                            <label className="block text-[10px] font-bold text-gray-600 uppercase">Encargado</label>
+                            <select 
+                              value={editingBitacoraData.responsable}
+                              onChange={(e) => setEditingBitacoraData({ ...editingBitacoraData, responsable: e.target.value as Responsable })}
+                              className="w-full bg-white border border-gray-300 rounded p-1 font-bold"
+                            >
+                              {RESPONSABLES.map(r => <option key={r} value={r}>{r}</option>)}
+                            </select>
+                          </div>
 
-                        {act.producto && (
-                          <span className="text-[10px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200 px-2 py-0.5 rounded">
-                            {act.producto}
-                          </span>
-                        )}
+                          <div>
+                            <label className="block text-[10px] font-bold text-gray-600 uppercase">Tienda</label>
+                            <input 
+                              type="text" 
+                              value={editingBitacoraData.tiendaLinea}
+                              onChange={(e) => setEditingBitacoraData({ ...editingBitacoraData, tiendaLinea: e.target.value })}
+                              className="w-full bg-white border border-gray-300 rounded p-1 font-semibold text-xs"
+                            />
+                          </div>
+                        </div>
+
+                        <div>
+                          <label className="block text-[10px] font-bold text-gray-600 uppercase">Descripción</label>
+                          <textarea 
+                            rows={2}
+                            value={editingBitacoraData.descripcion}
+                            onChange={(e) => setEditingBitacoraData({ ...editingBitacoraData, descripcion: e.target.value })}
+                            className="w-full bg-white border border-gray-300 rounded p-2 text-xs font-medium"
+                          />
+                        </div>
+
+                        <div className="flex justify-end gap-2">
+                          <button 
+                            onClick={() => setEditingBitacoraId(null)}
+                            className="px-3 py-1 bg-gray-200 text-gray-700 text-xs font-medium rounded hover:bg-gray-300"
+                          >
+                            Cancelar
+                          </button>
+                          <button 
+                            onClick={handleSaveEditBitacora}
+                            className="px-3 py-1 bg-emerald-600 text-white text-xs font-bold rounded hover:bg-emerald-700"
+                          >
+                            ✓ Guardar Cambios
+                          </button>
+                        </div>
                       </div>
-                      
-                      <span className="text-gray-400 font-mono text-[11px]">{act.fecha}</span>
-                    </div>
+                    );
+                  }
 
-                    <p className="text-sm text-gray-800 font-medium pl-1 border-l-2 border-blue-500 my-1">
-                      {act.descripcion}
-                    </p>
-                  </div>
-                ))
+                  return (
+                    <div key={act.id} className="p-4 rounded-xl border border-gray-200 bg-white hover:border-blue-300 hover:shadow-xs transition-all space-y-2">
+                      <div className="flex flex-wrap justify-between items-center text-xs gap-2">
+                        <div className="flex items-center gap-2">
+                          <span className="font-black bg-blue-600 text-white px-2 py-0.5 rounded text-[10px] tracking-wide">
+                            👤 {act.responsable}
+                          </span>
+
+                          <span className="font-bold text-gray-800 bg-gray-100 px-2 py-0.5 rounded border border-gray-200">
+                            {act.tiendaLinea}
+                          </span>
+
+                          {act.producto && (
+                            <span className="text-[10px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200 px-2 py-0.5 rounded">
+                              {act.producto}
+                            </span>
+                          )}
+                        </div>
+
+                        <div className="flex items-center gap-2">
+                          <span className="text-gray-400 font-mono text-[11px]">{act.fecha}</span>
+                          
+                          {/* BOTONES DE EDICIÓN Y ELIMINACIÓN DE BITÁCORA */}
+                          <button 
+                            onClick={() => handleStartEditBitacora(act)}
+                            title="Editar esta nota de bitácora"
+                            className="text-gray-400 hover:text-blue-600 p-1 rounded hover:bg-blue-50 text-xs"
+                          >
+                            ✏️
+                          </button>
+                          <button 
+                            onClick={() => handleDeleteBitacora(act.id)}
+                            title="Eliminar esta nota de bitácora"
+                            className="text-gray-400 hover:text-red-600 p-1 rounded hover:bg-red-50 text-xs"
+                          >
+                            🗑️
+                          </button>
+                        </div>
+                      </div>
+
+                      <p className="text-sm text-gray-800 font-medium pl-1 border-l-2 border-blue-500 my-1">
+                        {act.descripcion}
+                      </p>
+                    </div>
+                  );
+                })
               ) : (
                 <div className="p-8 text-center text-gray-500">
                   No se encontraron actividades con los filtros seleccionados.
