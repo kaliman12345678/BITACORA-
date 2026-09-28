@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
 
 // Estructura basada en los datos reales del pantallazo
 interface Tienda {
@@ -54,8 +54,32 @@ const TIENDAS_INICIALES: Tienda[] = [
   { id: '33', fecha: '27/9/2026', numero: '3104965018', linea: 'SANTA SHOP 3', producto: 'AROMATERAPIA', trafi: 'Oscar', presupuesto: 20000 },
 ];
 
+const BITACORA_INICIAL: ActividadBitacora[] = [
+  { id: '1', fecha: '28 Sep 2026 - 14:15', tiendaLinea: 'TOP MARKET 1', descripcion: 'Se cambió creativo de campaña principal.' },
+  { id: '2', fecha: '27 Sep 2026 - 09:30', tiendaLinea: 'NOVA HOME', descripcion: 'Se montó campaña de WhatsApp.' },
+  { id: '3', fecha: '26 Sep 2026 - 16:45', tiendaLinea: 'DANTE NOVA', descripcion: 'Aumento de presupuesto semanal.' }
+];
+
 function App() {
-  const [tiendas, setTiendas] = useState<Tienda[]>(TIENDAS_INICIALES);
+  // Persistencia con localStorage para que NO se borre el historial ni las tiendas al actualizar la app o recargar
+  const [tiendas, setTiendas] = useState<Tienda[]>(() => {
+    const saved = localStorage.getItem('bitacora_tiendas');
+    return saved ? JSON.parse(saved) : TIENDAS_INICIALES;
+  });
+
+  const [bitacoraList, setBitacoraList] = useState<ActividadBitacora[]>(() => {
+    const saved = localStorage.getItem('bitacora_historial');
+    return saved ? JSON.parse(saved) : BITACORA_INICIAL;
+  });
+
+  useEffect(() => {
+    localStorage.setItem('bitacora_tiendas', JSON.stringify(tiendas));
+  }, [tiendas]);
+
+  useEffect(() => {
+    localStorage.setItem('bitacora_historial', JSON.stringify(bitacoraList));
+  }, [bitacoraList]);
+
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedProducto, setSelectedProducto] = useState<string>('TODOS');
   const [uploadState, setUploadState] = useState<'idle' | 'reading' | 'reviewing' | 'confirmed'>('idle');
@@ -67,11 +91,6 @@ function App() {
   const [showHistorialModal, setShowHistorialModal] = useState(false);
   const [selectedTiendaBitacora, setSelectedTiendaBitacora] = useState('');
   const [actividadTexto, setActividadTexto] = useState('');
-  const [bitacoraList, setBitacoraList] = useState<ActividadBitacora[]>([
-    { id: '1', fecha: '28 Sep 2026 - 14:15', tiendaLinea: 'TOP MARKET 1', descripcion: 'Se cambió creativo de campaña principal.' },
-    { id: '2', fecha: '27 Sep 2026 - 09:30', tiendaLinea: 'NOVA HOME', descripcion: 'Se montó campaña de WhatsApp.' },
-    { id: '3', fecha: '26 Sep 2026 - 16:45', tiendaLinea: 'DANTE NOVA', descripcion: 'Aumento de presupuesto semanal.' }
-  ]);
 
   // Estado para menú de Copiar
   const [showCopyMenu, setShowCopyMenu] = useState(false);
@@ -328,7 +347,6 @@ function App() {
                   📝 Agregar a bitácora
                 </button>
 
-                {/* BOTÓN NUEVO: VER HISTORIAL DE BITÁCORA */}
                 <button 
                   onClick={() => setShowHistorialModal(true)}
                   className="bg-gray-900 text-white px-5 py-2.5 rounded-lg font-medium hover:bg-gray-800 transition-colors shadow-xs flex items-center gap-2 text-sm"
@@ -605,7 +623,7 @@ function App() {
         </div>
       )}
 
-      {/* MODAL HISTORIAL DE BITÁCORA (NUEVO) */}
+      {/* MODAL HISTORIAL DE BITÁCORA */}
       {showHistorialModal && (
         <div className="fixed inset-0 bg-gray-900/50 backdrop-blur-xs flex items-center justify-center p-4 z-50">
           <div className="bg-white rounded-2xl border border-gray-200 shadow-xl max-w-2xl w-full p-6 space-y-4">
