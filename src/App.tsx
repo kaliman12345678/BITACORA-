@@ -67,7 +67,7 @@ const BITACORA_INICIAL: ActividadBitacora[] = [
 ];
 
 function App() {
-  // Persistencia con localStorage para que NO se borre el historial ni las tiendas
+  // Persistencia con localStorage
   const [tiendas, setTiendas] = useState<Tienda[]>(() => {
     const saved = localStorage.getItem('bitacora_tiendas');
     return saved ? JSON.parse(saved) : TIENDAS_INICIALES;
@@ -95,6 +95,9 @@ function App() {
   // Estado para edición en línea de la tabla
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editFormData, setEditFormData] = useState<Tienda | null>(null);
+
+  // Estado para Drag and Drop
+  const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
 
   // Estado para Modal Agregar Tienda Nueva
   const [showAddStoreModal, setShowAddStoreModal] = useState(false);
@@ -138,6 +141,53 @@ function App() {
 
     return matchesSearch && matchesProducto;
   });
+
+  // Reordenar filas: Mover arriba o abajo
+  const moveRow = (indexInFiltered: number, direction: 'up' | 'down') => {
+    const targetFilteredIndex = direction === 'up' ? indexInFiltered - 1 : indexInFiltered + 1;
+    if (targetFilteredIndex < 0 || targetFilteredIndex >= tiendasFiltradas.length) return;
+
+    const itemToMove = tiendasFiltradas[indexInFiltered];
+    const itemTarget = tiendasFiltradas[targetFilteredIndex];
+
+    const realIndex1 = tiendas.findIndex(t => t.id === itemToMove.id);
+    const realIndex2 = tiendas.findIndex(t => t.id === itemTarget.id);
+
+    if (realIndex1 !== -1 && realIndex2 !== -1) {
+      const newTiendas = [...tiendas];
+      newTiendas[realIndex1] = itemTarget;
+      newTiendas[realIndex2] = itemToMove;
+      setTiendas(newTiendas);
+    }
+  };
+
+  // Drag and drop handlers
+  const handleDragStart = (indexInFiltered: number) => {
+    setDraggedIndex(indexInFiltered);
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+  };
+
+  const handleDrop = (dropIndexInFiltered: number) => {
+    if (draggedIndex === null || draggedIndex === dropIndexInFiltered) return;
+
+    const itemToMove = tiendasFiltradas[draggedIndex];
+    const itemTarget = tiendasFiltradas[dropIndexInFiltered];
+
+    const realIndex1 = tiendas.findIndex(t => t.id === itemToMove.id);
+    const realIndex2 = tiendas.findIndex(t => t.id === itemTarget.id);
+
+    if (realIndex1 !== -1 && realIndex2 !== -1) {
+      const newTiendas = [...tiendas];
+      newTiendas.splice(realIndex1, 1);
+      newTiendas.splice(realIndex2, 0, itemToMove);
+      setTiendas(newTiendas);
+    }
+
+    setDraggedIndex(null);
+  };
 
   // Filtrado de entradas de bitácora
   const bitacoraFiltrada = bitacoraList.filter(item => {
@@ -184,7 +234,7 @@ function App() {
     }, 4000);
   };
 
-  // Iniciar edición manual de una tienda
+  // Iniciar edición manual
   const handleStartEdit = (tienda: Tienda) => {
     setEditingId(tienda.id);
     setEditFormData({ ...tienda });
@@ -237,7 +287,6 @@ function App() {
       `"${t.fecha}";"${t.numero}";"${t.linea}";"${t.producto}";"${t.trafi}";"${t.presupuesto}"`
     ).join("\n");
 
-    // BOM Byte Order Mark (\uFEFF) para abrir correctamente acentos e insensibilidad en Excel
     const csvContent = "\uFEFF" + headers + rows;
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
@@ -400,7 +449,7 @@ function App() {
               </div>
             </div>
 
-            {/* Acciones Principales y Botón de Descargar Excel */}
+            {/* Acciones Principales */}
             <div className="flex flex-wrap gap-3 items-center justify-between">
               <div className="flex flex-wrap gap-3">
                 <input 
@@ -417,7 +466,6 @@ function App() {
                   📷 Subir pantallazo
                 </button>
 
-                {/* BOTÓN NUEVO: DESCARGAR ARCHIVO EXCEL */}
                 <button 
                   onClick={handleDownloadExcel}
                   className="bg-emerald-700 text-white px-5 py-2.5 rounded-lg font-bold hover:bg-emerald-800 transition-colors shadow-xs flex items-center gap-2 text-sm"
@@ -485,7 +533,6 @@ function App() {
                 </button>
               </div>
 
-              {/* Botón de Agregar Tienda Nueva */}
               <button 
                 onClick={() => setShowAddStoreModal(true)}
                 className="bg-blue-50 border border-blue-200 text-blue-700 px-4 py-2 rounded-lg font-bold hover:bg-blue-100 text-xs shadow-xs"
@@ -494,7 +541,7 @@ function App() {
               </button>
             </div>
 
-            {/* FILTROS POR PRODUCTOS (Pills táctiles) */}
+            {/* FILTROS POR PRODUCTOS */}
             <div className="bg-white p-3 rounded-xl border border-gray-200 shadow-xs space-y-2">
               <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider block">Filtro por Producto:</span>
               <div className="flex flex-wrap gap-1.5">
@@ -514,19 +561,20 @@ function App() {
               </div>
             </div>
 
-            {/* Tabla Principal de Tiendas con Edición Manual */}
+            {/* Tabla Principal de Tiendas con Drag-and-Drop y Botones Mover Orden */}
             <div className="bg-white rounded-xl border border-gray-200 shadow-xs overflow-hidden">
               <div className="px-6 py-4 border-b border-gray-200 bg-gray-50 flex justify-between items-center">
                 <h2 className="font-semibold text-gray-800 text-base">
                   Tiendas y Presupuestos {searchTerm && <span className="text-sm font-normal text-gray-500">({tiendasFiltradas.length} encontradas)</span>}
                 </h2>
-                <span className="text-xs text-gray-500 font-medium">Haz clic en ✏️ en cualquier fila para modificar sus valores manualmente</span>
+                <span className="text-xs text-gray-500 font-medium">Usa ⬆️ ⬇️ o arrastra las filas (☰) para cambiar el orden</span>
               </div>
               
               <div className="overflow-x-auto">
                 <table className="w-full text-left border-collapse text-sm">
                   <thead>
                     <tr className="bg-gray-100/70 text-gray-600 text-xs uppercase tracking-wider border-b border-gray-200">
+                      <th className="px-3 py-3 font-semibold text-center w-12">Orden</th>
                       <th className="px-4 py-3 font-semibold">Fecha</th>
                       
                       <th className="px-4 py-3 font-semibold">
@@ -588,12 +636,13 @@ function App() {
                   </thead>
                   <tbody className="divide-y divide-gray-200 text-gray-700">
                     {tiendasFiltradas.length > 0 ? (
-                      tiendasFiltradas.map((tienda) => {
+                      tiendasFiltradas.map((tienda, idx) => {
                         const isEditing = editingId === tienda.id;
 
                         if (isEditing && editFormData) {
                           return (
                             <tr key={tienda.id} className="bg-blue-50/70 border-2 border-blue-400">
+                              <td className="px-2 py-2 text-center text-gray-400">☰</td>
                               <td className="px-2 py-2">
                                 <input 
                                   type="text" 
@@ -663,7 +712,37 @@ function App() {
                         }
 
                         return (
-                          <tr key={tienda.id} className="hover:bg-blue-50/50 transition-colors">
+                          <tr 
+                            key={tienda.id}
+                            draggable
+                            onDragStart={() => handleDragStart(idx)}
+                            onDragOver={handleDragOver}
+                            onDrop={() => handleDrop(idx)}
+                            className={`hover:bg-blue-50/50 transition-colors cursor-grab active:cursor-grabbing ${draggedIndex === idx ? 'opacity-40 bg-blue-100' : ''}`}
+                          >
+                            {/* Control de Reordenamiento (Botones Up/Down + Drag Handle) */}
+                            <td className="px-2 py-3 text-center whitespace-nowrap">
+                              <div className="flex items-center justify-center gap-0.5">
+                                <span className="text-gray-300 font-bold text-xs mr-0.5 cursor-grab">☰</span>
+                                <button 
+                                  disabled={idx === 0}
+                                  onClick={() => moveRow(idx, 'up')}
+                                  title="Mover arriba"
+                                  className="text-gray-400 hover:text-blue-600 disabled:opacity-20 text-xs p-0.5 rounded"
+                                >
+                                  ⬆️
+                                </button>
+                                <button 
+                                  disabled={idx === tiendasFiltradas.length - 1}
+                                  onClick={() => moveRow(idx, 'down')}
+                                  title="Mover abajo"
+                                  className="text-gray-400 hover:text-blue-600 disabled:opacity-20 text-xs p-0.5 rounded"
+                                >
+                                  ⬇️
+                                </button>
+                              </div>
+                            </td>
+
                             <td className="px-4 py-3 whitespace-nowrap text-gray-500">{tienda.fecha}</td>
                             <td className="px-4 py-3 font-mono text-xs font-medium text-gray-900">{tienda.numero}</td>
                             <td className="px-4 py-3 font-semibold text-gray-900">{tienda.linea}</td>
@@ -676,11 +755,11 @@ function App() {
                             <td className="px-4 py-3 font-bold text-gray-900 text-right font-mono">
                               {formatMoneda(tienda.presupuesto)}
                             </td>
-                            <td className="px-4 py-3 text-center">
+                            <td className="px-4 py-3 text-center whitespace-nowrap">
                               <button 
                                 onClick={() => handleStartEdit(tienda)}
                                 title="Modificar manualmente esta tienda"
-                                className="text-gray-400 hover:text-blue-600 hover:bg-blue-50 p-1 rounded text-xs transition-all font-medium flex items-center justify-center gap-1 mx-auto"
+                                className="text-gray-400 hover:text-blue-600 hover:bg-blue-50 p-1 rounded text-xs transition-all font-medium inline-flex items-center justify-center gap-1"
                               >
                                 ✏️ <span className="hidden md:inline">Editar</span>
                               </button>
@@ -690,7 +769,7 @@ function App() {
                       })
                     ) : (
                       <tr>
-                        <td colSpan={7} className="px-6 py-8 text-center text-gray-500">
+                        <td colSpan={8} className="px-6 py-8 text-center text-gray-500">
                           No se encontraron tiendas para los criterios seleccionados.
                         </td>
                       </tr>
@@ -769,7 +848,7 @@ function App() {
 
       </main>
 
-      {/* MODAL AGREGAR NUEVA TIENDA MANULAMENTE */}
+      {/* MODAL AGREGAR NUEVA TIENDA */}
       {showAddStoreModal && (
         <div className="fixed inset-0 bg-gray-900/50 backdrop-blur-xs flex items-center justify-center p-4 z-50">
           <div className="bg-white rounded-2xl border border-gray-200 shadow-xl max-w-md w-full p-6 space-y-4">
