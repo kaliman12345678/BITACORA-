@@ -118,6 +118,9 @@ function App() {
   const [showBitacoraModal, setShowBitacoraModal] = useState(false);
   const [showHistorialModal, setShowHistorialModal] = useState(false);
   
+  // ESTADO NUEVO: PANTALLA COMPLETA PARA EL HISTORIAL DE BITÁCORA
+  const [isBitacoraFullScreen, setIsBitacoraFullScreen] = useState(false);
+
   // Campo Fecha en la Bitácora
   const todayISO = new Date().toISOString().split('T')[0];
   const [fechaBitacoraInput, setFechaBitacoraInput] = useState(todayISO);
@@ -132,11 +135,11 @@ function App() {
   const [editingBitacoraId, setEditingBitacoraId] = useState<string | null>(null);
   const [editingBitacoraData, setEditingBitacoraData] = useState<ActividadBitacora | null>(null);
 
-  // FILTROS DEL HISTORIAL DE BITÁCORA (INCLUYENDO FECHA)
+  // FILTROS DEL HISTORIAL DE BITÁCORA
   const [bitacoraSearch, setBitacoraSearch] = useState('');
   const [bitacoraProductoFilter, setBitacoraProductoFilter] = useState('TODOS');
   const [bitacoraResponsableFilter, setBitacoraResponsableFilter] = useState('TODOS');
-  const [bitacoraFechaFilter, setBitacoraFechaFilter] = useState(''); // Filtro de fecha en bitácora
+  const [bitacoraFechaFilter, setBitacoraFechaFilter] = useState('');
 
   // Estado para menú de Copiar
   const [showCopyMenu, setShowCopyMenu] = useState(false);
@@ -215,7 +218,7 @@ function App() {
     setDraggedIndex(null);
   };
 
-  // FILTRADO COMPLETO DE BITÁCORA (BÚSQUEDA + PRODUCTO + RESPONSABLE + FECHA)
+  // FILTRADO COMPLETO DE BITÁCORA
   const bitacoraFiltrada = bitacoraList.filter(item => {
     const searchLower = bitacoraSearch.toLowerCase();
     const matchesSearch = 
@@ -227,7 +230,6 @@ function App() {
     const matchesProducto = bitacoraProductoFilter === 'TODOS' || item.producto === bitacoraProductoFilter;
     const matchesResponsable = bitacoraResponsableFilter === 'TODOS' || item.responsable === bitacoraResponsableFilter;
     
-    // Filtrado por Fecha si hay seleccionada
     let matchesFecha = true;
     if (bitacoraFechaFilter) {
       const [y, m, d] = bitacoraFechaFilter.split('-');
@@ -1131,7 +1133,6 @@ function App() {
             </div>
 
             <form onSubmit={handleGuardarActividad} className="space-y-4">
-              {/* ENCARGADO / RESPONSABLE */}
               <div>
                 <label className="block text-xs font-bold text-gray-700 uppercase mb-1">
                   👤 Encargado / Responsable *
@@ -1154,7 +1155,6 @@ function App() {
                 </div>
               </div>
 
-              {/* SELECCIÓN DE FECHA DE LA ACTIVIDAD */}
               <div>
                 <label className="block text-xs font-bold text-gray-700 uppercase mb-1">
                   📅 Fecha de la actividad *
@@ -1168,7 +1168,6 @@ function App() {
                 />
               </div>
 
-              {/* BUSCADOR DE TIENDA DIDÁCTICO */}
               <div className="relative">
                 <label className="block text-xs font-bold text-gray-700 uppercase mb-1">
                   🏬 Tienda / Línea (Escribe para buscar o ingresar)
@@ -1258,10 +1257,16 @@ function App() {
         </div>
       )}
 
-      {/* MODAL HISTORIAL DE BITÁCORA CON EDICIÓN, ELIMINACIÓN Y FILTRO POR FECHA */}
+      {/* MODAL HISTORIAL DE BITÁCORA CON OPCIÓN PANTALLA COMPLETA ⛶ */}
       {showHistorialModal && (
-        <div className="fixed inset-0 bg-gray-900/50 backdrop-blur-xs flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-2xl border border-gray-200 shadow-xl max-w-3xl w-full p-6 space-y-4">
+        <div className={`fixed inset-0 bg-gray-900/50 backdrop-blur-xs flex items-center justify-center p-0 md:p-4 z-50 transition-all`}>
+          <div className={`bg-white shadow-xl space-y-4 transition-all duration-300 flex flex-col ${
+            isBitacoraFullScreen 
+              ? 'w-full h-full rounded-none border-none p-6' 
+              : 'rounded-2xl border border-gray-200 max-w-3xl w-full p-6'
+          }`}>
+            
+            {/* CABECERA CON BOTÓN DE PANTALLA COMPLETA ⛶ Y CERRAR ✕ */}
             <div className="flex justify-between items-center border-b border-gray-100 pb-3">
               <div className="flex items-center gap-2">
                 <span className="text-xl">📜</span>
@@ -1270,18 +1275,31 @@ function App() {
                   {bitacoraFiltrada.length} de {bitacoraList.length}
                 </span>
               </div>
-              <button 
-                onClick={() => {
-                  setShowHistorialModal(false);
-                  setEditingBitacoraId(null);
-                }}
-                className="text-gray-400 hover:text-gray-600 text-lg"
-              >
-                ✕
-              </button>
+              
+              <div className="flex items-center gap-2">
+                {/* BOTÓN BOTÓN PANTALLA COMPLETA ⛶ */}
+                <button 
+                  onClick={() => setIsBitacoraFullScreen(!isBitacoraFullScreen)}
+                  title={isBitacoraFullScreen ? "Restaurar tamaño normal" : "Ampliar a Pantalla Completa"}
+                  className="text-gray-500 hover:text-blue-600 hover:bg-blue-50 px-2.5 py-1 rounded-lg text-sm font-bold border border-gray-200 flex items-center gap-1 transition-all"
+                >
+                  {isBitacoraFullScreen ? '🗗 Restaurar' : '⛶ Pantalla completa'}
+                </button>
+
+                <button 
+                  onClick={() => {
+                    setShowHistorialModal(false);
+                    setEditingBitacoraId(null);
+                    setIsBitacoraFullScreen(false);
+                  }}
+                  className="text-gray-400 hover:text-gray-600 text-lg px-1"
+                >
+                  ✕
+                </button>
+              </div>
             </div>
 
-            {/* CONTROLES DE BUSCADOR Y FILTROS INCLUYENDO FILTRO DE FECHA */}
+            {/* CONTROLES DE BUSCADOR Y FILTROS */}
             <div className="space-y-3 bg-gray-50 p-3 rounded-xl border border-gray-200">
               <div className="flex flex-col md:flex-row gap-2">
                 <div className="relative flex-1">
@@ -1298,7 +1316,6 @@ function App() {
                   )}
                 </div>
 
-                {/* NUEVO FILTRO POR FECHA ESPECÍFICA */}
                 <div className="flex items-center gap-1">
                   <span className="text-xs font-bold text-gray-600">📅 Fecha:</span>
                   <input 
@@ -1351,8 +1368,8 @@ function App() {
               </div>
             </div>
 
-            {/* Lista de Registros Filtrados con Edición y Eliminación */}
-            <div className="max-h-80 overflow-y-auto space-y-3 pr-1">
+            {/* LISTA DE REGISTROS (SE ADAPTA AL TAMAÑO COMPLETO SI ESTÁ ACTIVADO) */}
+            <div className={`overflow-y-auto space-y-3 pr-1 ${isBitacoraFullScreen ? 'flex-1 max-h-none' : 'max-h-80'}`}>
               {bitacoraFiltrada.length > 0 ? (
                 bitacoraFiltrada.map((act) => {
                   const isEditingThisBitacora = editingBitacoraId === act.id;
@@ -1386,7 +1403,7 @@ function App() {
                         <div>
                           <label className="block text-[10px] font-bold text-gray-600 uppercase">Descripción</label>
                           <textarea 
-                            rows={2}
+                            rows={3}
                             value={editingBitacoraData.descripcion}
                             onChange={(e) => setEditingBitacoraData({ ...editingBitacoraData, descripcion: e.target.value })}
                             className="w-full bg-white border border-gray-300 rounded p-2 text-xs font-medium"
@@ -1433,7 +1450,6 @@ function App() {
                         <div className="flex items-center gap-2">
                           <span className="text-gray-400 font-mono text-[11px]">{act.fecha}</span>
                           
-                          {/* BOTONES DE EDICIÓN Y ELIMINACIÓN DE BITÁCORA */}
                           <button 
                             onClick={() => handleStartEditBitacora(act)}
                             title="Editar esta nota de bitácora"
@@ -1476,7 +1492,10 @@ function App() {
               </button>
 
               <button
-                onClick={() => setShowHistorialModal(false)}
+                onClick={() => {
+                  setShowHistorialModal(false);
+                  setIsBitacoraFullScreen(false);
+                }}
                 className="px-5 py-2 text-sm font-medium bg-gray-100 text-gray-700 hover:bg-gray-200 rounded-lg"
               >
                 Cerrar
