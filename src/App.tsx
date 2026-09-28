@@ -62,13 +62,15 @@ function App() {
   const [extractedData, setExtractedData] = useState<Tienda[]>([]);
   const [feedback, setFeedback] = useState<string | null>(null);
 
-  // Estado para el modal de Bitácora
+  // Estados para Bitácora y su Historial
   const [showBitacoraModal, setShowBitacoraModal] = useState(false);
+  const [showHistorialModal, setShowHistorialModal] = useState(false);
   const [selectedTiendaBitacora, setSelectedTiendaBitacora] = useState('');
   const [actividadTexto, setActividadTexto] = useState('');
   const [bitacoraList, setBitacoraList] = useState<ActividadBitacora[]>([
-    { id: '1', fecha: '28 Sep', tiendaLinea: 'TOP MARKET 1', descripcion: 'Se cambió creativo de campaña.' },
-    { id: '2', fecha: '27 Sep', tiendaLinea: 'NOVA HOME', descripcion: 'Se montó campaña de WhatsApp.' }
+    { id: '1', fecha: '28 Sep 2026 - 14:15', tiendaLinea: 'TOP MARKET 1', descripcion: 'Se cambió creativo de campaña principal.' },
+    { id: '2', fecha: '27 Sep 2026 - 09:30', tiendaLinea: 'NOVA HOME', descripcion: 'Se montó campaña de WhatsApp.' },
+    { id: '3', fecha: '26 Sep 2026 - 16:45', tiendaLinea: 'DANTE NOVA', descripcion: 'Aumento de presupuesto semanal.' }
   ]);
 
   // Estado para menú de Copiar
@@ -156,9 +158,12 @@ function App() {
     e.preventDefault();
     if (!actividadTexto.trim()) return;
 
+    const hoy = new Date();
+    const fechaFormateada = `${hoy.getDate()} Sep ${hoy.getFullYear()} - ${hoy.getHours().toString().padStart(2, '0')}:${hoy.getMinutes().toString().padStart(2, '0')}`;
+
     const nuevaActividad: ActividadBitacora = {
       id: Date.now().toString(),
-      fecha: 'Hoy',
+      fecha: fechaFormateada,
       tiendaLinea: selectedTiendaBitacora || 'General',
       descripcion: actividadTexto
     };
@@ -236,12 +241,21 @@ function App() {
               </div>
               <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-xs flex flex-col justify-center">
                 <p className="text-xs text-gray-500 font-semibold uppercase tracking-wider">Bitácora Rápida</p>
-                <button 
-                  onClick={() => setShowBitacoraModal(true)}
-                  className="mt-1 text-sm text-blue-600 font-bold hover:text-blue-800 text-left flex items-center gap-1"
-                >
-                  + Registrar actividad
-                </button>
+                <div className="flex items-center gap-3 mt-1">
+                  <button 
+                    onClick={() => setShowBitacoraModal(true)}
+                    className="text-xs text-blue-600 font-bold hover:underline"
+                  >
+                    + Registrar
+                  </button>
+                  <span className="text-gray-300">|</span>
+                  <button 
+                    onClick={() => setShowHistorialModal(true)}
+                    className="text-xs text-gray-700 font-bold hover:underline flex items-center gap-1"
+                  >
+                    📜 Ver historial ({bitacoraList.length})
+                  </button>
+                </div>
               </div>
             </div>
 
@@ -313,13 +327,24 @@ function App() {
                 >
                   📝 Agregar a bitácora
                 </button>
+
+                {/* BOTÓN NUEVO: VER HISTORIAL DE BITÁCORA */}
+                <button 
+                  onClick={() => setShowHistorialModal(true)}
+                  className="bg-gray-900 text-white px-5 py-2.5 rounded-lg font-medium hover:bg-gray-800 transition-colors shadow-xs flex items-center gap-2 text-sm"
+                >
+                  📜 Ver historial de bitácora ({bitacoraList.length})
+                </button>
               </div>
 
-              {/* Historial rápido de bitácora reciente */}
+              {/* Vista previa de última actividad */}
               {bitacoraList.length > 0 && (
-                <div className="text-xs text-gray-500 bg-white border border-gray-200 px-3 py-1.5 rounded-lg shadow-xs flex items-center gap-2">
-                  <span className="font-semibold text-gray-700">Bitácora reciente:</span>
-                  <span className="truncate max-w-xs text-gray-600">[{bitacoraList[0].tiendaLinea}] {bitacoraList[0].descripcion}</span>
+                <div 
+                  onClick={() => setShowHistorialModal(true)}
+                  className="cursor-pointer text-xs text-gray-600 bg-white border border-gray-200 px-3 py-2 rounded-lg shadow-xs flex items-center gap-2 hover:border-blue-300 transition-all"
+                >
+                  <span className="font-bold text-blue-600">Última actividad:</span>
+                  <span className="truncate max-w-xs font-medium">[{bitacoraList[0].tiendaLinea}] {bitacoraList[0].descripcion}</span>
                 </div>
               )}
             </div>
@@ -344,7 +369,7 @@ function App() {
               </div>
             </div>
 
-            {/* Tabla Principal de Tiendas con Copiado de Columna directo en el Header */}
+            {/* Tabla Principal de Tiendas */}
             <div className="bg-white rounded-xl border border-gray-200 shadow-xs overflow-hidden">
               <div className="px-6 py-4 border-b border-gray-200 bg-gray-50 flex justify-between items-center">
                 <h2 className="font-semibold text-gray-800 text-base">
@@ -359,7 +384,6 @@ function App() {
                     <tr className="bg-gray-100/70 text-gray-600 text-xs uppercase tracking-wider border-b border-gray-200">
                       <th className="px-4 py-3 font-semibold">Fecha</th>
                       
-                      {/* Botón copiar columna Teléfono */}
                       <th className="px-4 py-3 font-semibold">
                         <div className="flex items-center gap-1">
                           <span>Teléfono</span>
@@ -373,7 +397,6 @@ function App() {
                         </div>
                       </th>
 
-                      {/* Botón copiar columna Línea */}
                       <th className="px-4 py-3 font-semibold">
                         <div className="flex items-center gap-1">
                           <span>Línea / Tienda</span>
@@ -387,7 +410,6 @@ function App() {
                         </div>
                       </th>
 
-                      {/* Botón copiar columna Producto */}
                       <th className="px-4 py-3 font-semibold">
                         <div className="flex items-center gap-1">
                           <span>Producto</span>
@@ -403,7 +425,6 @@ function App() {
 
                       <th className="px-4 py-3 font-semibold">Trafi</th>
 
-                      {/* Botón copiar columna Presupuesto */}
                       <th className="px-4 py-3 font-semibold text-right">
                         <div className="flex items-center justify-end gap-1">
                           <span>Presupuesto</span>
@@ -517,10 +538,10 @@ function App() {
 
       </main>
 
-      {/* MODAL SENCILLO DE BITÁCORA (Principio 12: Sin formularios largos) */}
+      {/* MODAL REGISTRAR ACTIVIDAD */}
       {showBitacoraModal && (
         <div className="fixed inset-0 bg-gray-900/50 backdrop-blur-xs flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-2xl border border-gray-200 shadow-xl max-w-md w-full p-6 space-y-4 animate-scale-in">
+          <div className="bg-white rounded-2xl border border-gray-200 shadow-xl max-w-md w-full p-6 space-y-4">
             <div className="flex justify-between items-center border-b border-gray-100 pb-3">
               <h3 className="text-lg font-bold text-gray-900">📝 Registrar en Bitácora</h3>
               <button 
@@ -580,6 +601,71 @@ function App() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL HISTORIAL DE BITÁCORA (NUEVO) */}
+      {showHistorialModal && (
+        <div className="fixed inset-0 bg-gray-900/50 backdrop-blur-xs flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-2xl border border-gray-200 shadow-xl max-w-2xl w-full p-6 space-y-4">
+            <div className="flex justify-between items-center border-b border-gray-100 pb-3">
+              <div className="flex items-center gap-2">
+                <span className="text-xl">📜</span>
+                <h3 className="text-lg font-bold text-gray-900">Historial de Bitácora</h3>
+                <span className="bg-blue-100 text-blue-800 text-xs px-2 py-0.5 rounded-full font-bold">
+                  {bitacoraList.length} registros
+                </span>
+              </div>
+              <button 
+                onClick={() => setShowHistorialModal(false)}
+                className="text-gray-400 hover:text-gray-600 text-lg"
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Lista de Registros */}
+            <div className="max-h-96 overflow-y-auto space-y-3 pr-1">
+              {bitacoraList.length > 0 ? (
+                bitacoraList.map((act) => (
+                  <div key={act.id} className="p-4 rounded-xl border border-gray-200 bg-gray-50 hover:bg-white hover:shadow-xs transition-all space-y-1">
+                    <div className="flex justify-between items-center text-xs">
+                      <span className="font-bold text-blue-600 bg-blue-50 border border-blue-100 px-2 py-0.5 rounded">
+                        {act.tiendaLinea}
+                      </span>
+                      <span className="text-gray-400 font-medium">{act.fecha}</span>
+                    </div>
+                    <p className="text-sm text-gray-800 font-medium pt-1">
+                      {act.descripcion}
+                    </p>
+                  </div>
+                ))
+              ) : (
+                <div className="p-8 text-center text-gray-500">
+                  Aún no hay actividades registradas en la bitácora.
+                </div>
+              )}
+            </div>
+
+            <div className="flex justify-between items-center pt-2 border-t border-gray-100">
+              <button
+                onClick={() => {
+                  setShowHistorialModal(false);
+                  setShowBitacoraModal(true);
+                }}
+                className="text-sm font-bold text-blue-600 hover:underline flex items-center gap-1"
+              >
+                + Registrar nueva actividad
+              </button>
+
+              <button
+                onClick={() => setShowHistorialModal(false)}
+                className="px-5 py-2 text-sm font-medium bg-gray-100 text-gray-700 hover:bg-gray-200 rounded-lg"
+              >
+                Cerrar
+              </button>
+            </div>
           </div>
         </div>
       )}
