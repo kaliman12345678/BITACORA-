@@ -67,7 +67,7 @@ const BITACORA_INICIAL: ActividadBitacora[] = [
 ];
 
 function App() {
-  // Persistencia con localStorage para que NO se borre el historial ni las tiendas al actualizar la app o recargar
+  // Persistencia con localStorage para que NO se borre el historial ni las tiendas
   const [tiendas, setTiendas] = useState<Tienda[]>(() => {
     const saved = localStorage.getItem('bitacora_tiendas');
     return saved ? JSON.parse(saved) : TIENDAS_INICIALES;
@@ -91,6 +91,21 @@ function App() {
   const [uploadState, setUploadState] = useState<'idle' | 'reading' | 'reviewing' | 'confirmed'>('idle');
   const [extractedData, setExtractedData] = useState<Tienda[]>([]);
   const [feedback, setFeedback] = useState<string | null>(null);
+
+  // Estado para edición en línea de la tabla
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editFormData, setEditFormData] = useState<Tienda | null>(null);
+
+  // Estado para Modal Agregar Tienda Nueva
+  const [showAddStoreModal, setShowAddStoreModal] = useState(false);
+  const [newStoreData, setNewStoreData] = useState<Omit<Tienda, 'id'>>({
+    fecha: '28/9/2026',
+    numero: '',
+    linea: '',
+    producto: 'CAMISETAS',
+    trafi: 'Oscar',
+    presupuesto: 200000
+  });
 
   // Estados para Bitácora
   const [showBitacoraModal, setShowBitacoraModal] = useState(false);
@@ -169,6 +184,75 @@ function App() {
     }, 4000);
   };
 
+  // Iniciar edición manual de una tienda
+  const handleStartEdit = (tienda: Tienda) => {
+    setEditingId(tienda.id);
+    setEditFormData({ ...tienda });
+  };
+
+  // Guardar edición manual
+  const handleSaveEdit = () => {
+    if (!editFormData) return;
+    setTiendas(tiendas.map(t => t.id === editFormData.id ? editFormData : t));
+    setEditingId(null);
+    setEditFormData(null);
+    setFeedback(`✓ Tienda "${editFormData.linea}" actualizada correctamente.`);
+    setTimeout(() => setFeedback(null), 3500);
+  };
+
+  // Cancelar edición
+  const handleCancelEdit = () => {
+    setEditingId(null);
+    setEditFormData(null);
+  };
+
+  // Guardar nueva tienda manual
+  const handleCreateStore = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newStoreData.linea.trim()) return;
+
+    const nueva: Tienda = {
+      id: Date.now().toString(),
+      ...newStoreData
+    };
+
+    setTiendas([nueva, ...tiendas]);
+    setShowAddStoreModal(false);
+    setNewStoreData({
+      fecha: '28/9/2026',
+      numero: '',
+      linea: '',
+      producto: 'CAMISETAS',
+      trafi: 'Oscar',
+      presupuesto: 200000
+    });
+    setFeedback(`✓ Tienda "${nueva.linea}" creada e integrada correctamente.`);
+    setTimeout(() => setFeedback(null), 4000);
+  };
+
+  // DESCARGAR EXCEL COMPATIBLE (.csv / .xlsx con BOM)
+  const handleDownloadExcel = () => {
+    const headers = "FECHA;NUMERO;LINEA;PRODUCTO;TRAFI;PRESUPUESTO\n";
+    const rows = tiendasFiltradas.map(t => 
+      `"${t.fecha}";"${t.numero}";"${t.linea}";"${t.producto}";"${t.trafi}";"${t.presupuesto}"`
+    ).join("\n");
+
+    // BOM Byte Order Mark (\uFEFF) para abrir correctamente acentos e insensibilidad en Excel
+    const csvContent = "\uFEFF" + headers + rows;
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    
+    const link = document.createElement('a');
+    link.href = url;
+    link.setAttribute('download', `Bitacora_Tiendas_Presupuestos_${new Date().toISOString().slice(0,10)}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+
+    setFeedback("✓ Archivo descargado. Ya puedes abrirlo directamente en Microsoft Excel.");
+    setTimeout(() => setFeedback(null), 4000);
+  };
+
   // Copiar datos especificando columna o toda la tabla
   const copyToClipboard = (type: 'all' | 'numero' | 'linea' | 'producto' | 'presupuesto') => {
     let text = '';
@@ -207,7 +291,6 @@ function App() {
     const hoy = new Date();
     const fechaFormateada = `${hoy.getDate()} Sep ${hoy.getFullYear()} - ${hoy.getHours().toString().padStart(2, '0')}:${hoy.getMinutes().toString().padStart(2, '0')}`;
 
-    // Obtener producto de la tienda seleccionada
     const tiendaEncontrada = tiendas.find(t => t.linea === selectedTiendaBitacora);
     const productoTienda = tiendaEncontrada ? tiendaEncontrada.producto : 'GENERAL';
 
@@ -298,13 +381,13 @@ function App() {
                 </div>
               </div>
               <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-xs flex flex-col justify-center">
-                <p className="text-xs text-gray-500 font-semibold uppercase tracking-wider">Bitácora Rápida</p>
+                <p className="text-xs text-gray-500 font-semibold uppercase tracking-wider">Acciones Rápidas</p>
                 <div className="flex items-center gap-3 mt-1">
                   <button 
-                    onClick={() => setShowBitacoraModal(true)}
+                    onClick={() => setShowAddStoreModal(true)}
                     className="text-xs text-blue-600 font-bold hover:underline"
                   >
-                    + Registrar
+                    + Agregar tienda
                   </button>
                   <span className="text-gray-300">|</span>
                   <button 
@@ -317,7 +400,7 @@ function App() {
               </div>
             </div>
 
-            {/* Acciones Principales y Menú Desplegable de Copiado */}
+            {/* Acciones Principales y Botón de Descargar Excel */}
             <div className="flex flex-wrap gap-3 items-center justify-between">
               <div className="flex flex-wrap gap-3">
                 <input 
@@ -332,6 +415,14 @@ function App() {
                   className="bg-blue-600 text-white px-5 py-2.5 rounded-lg font-medium hover:bg-blue-700 transition-colors shadow-xs flex items-center gap-2 text-sm"
                 >
                   📷 Subir pantallazo
+                </button>
+
+                {/* BOTÓN NUEVO: DESCARGAR ARCHIVO EXCEL */}
+                <button 
+                  onClick={handleDownloadExcel}
+                  className="bg-emerald-700 text-white px-5 py-2.5 rounded-lg font-bold hover:bg-emerald-800 transition-colors shadow-xs flex items-center gap-2 text-sm"
+                >
+                  📊 Descargar Excel
                 </button>
 
                 {/* Botón Copiar con Opciones de Columna */}
@@ -394,16 +485,13 @@ function App() {
                 </button>
               </div>
 
-              {/* Vista previa de última actividad */}
-              {bitacoraList.length > 0 && (
-                <div 
-                  onClick={() => setShowHistorialModal(true)}
-                  className="cursor-pointer text-xs text-gray-600 bg-white border border-gray-200 px-3 py-2 rounded-lg shadow-xs flex items-center gap-2 hover:border-blue-300 transition-all"
-                >
-                  <span className="font-bold text-blue-600">Último cambio por {bitacoraList[0].responsable}:</span>
-                  <span className="truncate max-w-xs font-medium">[{bitacoraList[0].tiendaLinea}] {bitacoraList[0].descripcion}</span>
-                </div>
-              )}
+              {/* Botón de Agregar Tienda Nueva */}
+              <button 
+                onClick={() => setShowAddStoreModal(true)}
+                className="bg-blue-50 border border-blue-200 text-blue-700 px-4 py-2 rounded-lg font-bold hover:bg-blue-100 text-xs shadow-xs"
+              >
+                + Agregar nueva tienda
+              </button>
             </div>
 
             {/* FILTROS POR PRODUCTOS (Pills táctiles) */}
@@ -426,13 +514,13 @@ function App() {
               </div>
             </div>
 
-            {/* Tabla Principal de Tiendas */}
+            {/* Tabla Principal de Tiendas con Edición Manual */}
             <div className="bg-white rounded-xl border border-gray-200 shadow-xs overflow-hidden">
               <div className="px-6 py-4 border-b border-gray-200 bg-gray-50 flex justify-between items-center">
                 <h2 className="font-semibold text-gray-800 text-base">
                   Tiendas y Presupuestos {searchTerm && <span className="text-sm font-normal text-gray-500">({tiendasFiltradas.length} encontradas)</span>}
                 </h2>
-                <span className="text-xs text-gray-500 font-medium">Haz clic en 📋 en la cabecera para copiar esa columna</span>
+                <span className="text-xs text-gray-500 font-medium">Haz clic en ✏️ en cualquier fila para modificar sus valores manualmente</span>
               </div>
               
               <div className="overflow-x-auto">
@@ -494,29 +582,115 @@ function App() {
                           </button>
                         </div>
                       </th>
+
+                      <th className="px-4 py-3 font-semibold text-center">Acciones</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-200 text-gray-700">
                     {tiendasFiltradas.length > 0 ? (
-                      tiendasFiltradas.map((tienda) => (
-                        <tr key={tienda.id} className="hover:bg-blue-50/50 transition-colors">
-                          <td className="px-4 py-3 whitespace-nowrap text-gray-500">{tienda.fecha}</td>
-                          <td className="px-4 py-3 font-mono text-xs font-medium text-gray-900">{tienda.numero}</td>
-                          <td className="px-4 py-3 font-semibold text-gray-900">{tienda.linea}</td>
-                          <td className="px-4 py-3">
-                            <span className="bg-gray-100 text-gray-700 text-xs px-2 py-0.5 rounded font-medium">
-                              {tienda.producto}
-                            </span>
-                          </td>
-                          <td className="px-4 py-3 text-gray-600">{tienda.trafi}</td>
-                          <td className="px-4 py-3 font-bold text-gray-900 text-right font-mono">
-                            {formatMoneda(tienda.presupuesto)}
-                          </td>
-                        </tr>
-                      ))
+                      tiendasFiltradas.map((tienda) => {
+                        const isEditing = editingId === tienda.id;
+
+                        if (isEditing && editFormData) {
+                          return (
+                            <tr key={tienda.id} className="bg-blue-50/70 border-2 border-blue-400">
+                              <td className="px-2 py-2">
+                                <input 
+                                  type="text" 
+                                  value={editFormData.fecha}
+                                  onChange={(e) => setEditFormData({ ...editFormData, fecha: e.target.value })}
+                                  className="w-full bg-white border border-gray-300 rounded px-2 py-1 text-xs font-medium"
+                                />
+                              </td>
+                              <td className="px-2 py-2">
+                                <input 
+                                  type="text" 
+                                  value={editFormData.numero}
+                                  onChange={(e) => setEditFormData({ ...editFormData, numero: e.target.value })}
+                                  className="w-full bg-white border border-gray-300 rounded px-2 py-1 text-xs font-mono font-medium"
+                                />
+                              </td>
+                              <td className="px-2 py-2">
+                                <input 
+                                  type="text" 
+                                  value={editFormData.linea}
+                                  onChange={(e) => setEditFormData({ ...editFormData, linea: e.target.value })}
+                                  className="w-full bg-white border border-gray-300 rounded px-2 py-1 text-xs font-bold"
+                                />
+                              </td>
+                              <td className="px-2 py-2">
+                                <input 
+                                  type="text" 
+                                  value={editFormData.producto}
+                                  onChange={(e) => setEditFormData({ ...editFormData, producto: e.target.value })}
+                                  className="w-full bg-white border border-gray-300 rounded px-2 py-1 text-xs font-medium uppercase"
+                                />
+                              </td>
+                              <td className="px-2 py-2">
+                                <input 
+                                  type="text" 
+                                  value={editFormData.trafi}
+                                  onChange={(e) => setEditFormData({ ...editFormData, trafi: e.target.value })}
+                                  className="w-full bg-white border border-gray-300 rounded px-2 py-1 text-xs font-medium"
+                                />
+                              </td>
+                              <td className="px-2 py-2 text-right">
+                                <input 
+                                  type="number" 
+                                  value={editFormData.presupuesto}
+                                  onChange={(e) => setEditFormData({ ...editFormData, presupuesto: Number(e.target.value) || 0 })}
+                                  className="w-full bg-white border border-gray-300 rounded px-2 py-1 text-xs font-bold text-right font-mono"
+                                />
+                              </td>
+                              <td className="px-2 py-2 text-center whitespace-nowrap">
+                                <div className="flex items-center justify-center gap-1">
+                                  <button 
+                                    onClick={handleSaveEdit}
+                                    className="bg-emerald-600 text-white text-xs px-2.5 py-1 rounded font-bold hover:bg-emerald-700"
+                                  >
+                                    ✓ Guardar
+                                  </button>
+                                  <button 
+                                    onClick={handleCancelEdit}
+                                    className="bg-gray-200 text-gray-700 text-xs px-2 py-1 rounded font-medium hover:bg-gray-300"
+                                  >
+                                    ✕
+                                  </button>
+                                </div>
+                              </td>
+                            </tr>
+                          );
+                        }
+
+                        return (
+                          <tr key={tienda.id} className="hover:bg-blue-50/50 transition-colors">
+                            <td className="px-4 py-3 whitespace-nowrap text-gray-500">{tienda.fecha}</td>
+                            <td className="px-4 py-3 font-mono text-xs font-medium text-gray-900">{tienda.numero}</td>
+                            <td className="px-4 py-3 font-semibold text-gray-900">{tienda.linea}</td>
+                            <td className="px-4 py-3">
+                              <span className="bg-gray-100 text-gray-700 text-xs px-2 py-0.5 rounded font-medium">
+                                {tienda.producto}
+                              </span>
+                            </td>
+                            <td className="px-4 py-3 text-gray-600">{tienda.trafi}</td>
+                            <td className="px-4 py-3 font-bold text-gray-900 text-right font-mono">
+                              {formatMoneda(tienda.presupuesto)}
+                            </td>
+                            <td className="px-4 py-3 text-center">
+                              <button 
+                                onClick={() => handleStartEdit(tienda)}
+                                title="Modificar manualmente esta tienda"
+                                className="text-gray-400 hover:text-blue-600 hover:bg-blue-50 p-1 rounded text-xs transition-all font-medium flex items-center justify-center gap-1 mx-auto"
+                              >
+                                ✏️ <span className="hidden md:inline">Editar</span>
+                              </button>
+                            </td>
+                          </tr>
+                        );
+                      })
                     ) : (
                       <tr>
-                        <td colSpan={6} className="px-6 py-8 text-center text-gray-500">
+                        <td colSpan={7} className="px-6 py-8 text-center text-gray-500">
                           No se encontraron tiendas para los criterios seleccionados.
                         </td>
                       </tr>
@@ -595,7 +769,112 @@ function App() {
 
       </main>
 
-      {/* MODAL REGISTRAR ACTIVIDAD CON ASIGNACIÓN DE RESPONSABLE */}
+      {/* MODAL AGREGAR NUEVA TIENDA MANULAMENTE */}
+      {showAddStoreModal && (
+        <div className="fixed inset-0 bg-gray-900/50 backdrop-blur-xs flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-2xl border border-gray-200 shadow-xl max-w-md w-full p-6 space-y-4">
+            <div className="flex justify-between items-center border-b border-gray-100 pb-3">
+              <h3 className="text-lg font-bold text-gray-900">🏬 Agregar Nueva Tienda</h3>
+              <button 
+                onClick={() => setShowAddStoreModal(false)}
+                className="text-gray-400 hover:text-gray-600 text-lg"
+              >
+                ✕
+              </button>
+            </div>
+
+            <form onSubmit={handleCreateStore} className="space-y-3">
+              <div>
+                <label className="block text-xs font-bold text-gray-700 uppercase mb-1">
+                  Nombre de la Línea / Tienda *
+                </label>
+                <input 
+                  type="text"
+                  required
+                  placeholder="Ej: NUEVA TIENDA 1"
+                  value={newStoreData.linea}
+                  onChange={(e) => setNewStoreData({ ...newStoreData, linea: e.target.value })}
+                  className="w-full border border-gray-300 rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-bold text-gray-700 uppercase mb-1">
+                    Número de Teléfono
+                  </label>
+                  <input 
+                    type="text"
+                    placeholder="Ej: 3001234567"
+                    value={newStoreData.numero}
+                    onChange={(e) => setNewStoreData({ ...newStoreData, numero: e.target.value })}
+                    className="w-full border border-gray-300 rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none font-mono"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-gray-700 uppercase mb-1">
+                    Producto
+                  </label>
+                  <input 
+                    type="text"
+                    placeholder="Ej: CAMISETAS"
+                    value={newStoreData.producto}
+                    onChange={(e) => setNewStoreData({ ...newStoreData, producto: e.target.value.toUpperCase() })}
+                    className="w-full border border-gray-300 rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none uppercase"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-bold text-gray-700 uppercase mb-1">
+                    Presupuesto ($)
+                  </label>
+                  <input 
+                    type="number"
+                    required
+                    placeholder="200000"
+                    value={newStoreData.presupuesto}
+                    onChange={(e) => setNewStoreData({ ...newStoreData, presupuesto: Number(e.target.value) || 0 })}
+                    className="w-full border border-gray-300 rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none font-mono"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-gray-700 uppercase mb-1">
+                    Trafi
+                  </label>
+                  <input 
+                    type="text"
+                    value={newStoreData.trafi}
+                    onChange={(e) => setNewStoreData({ ...newStoreData, trafi: e.target.value })}
+                    className="w-full border border-gray-300 rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                  />
+                </div>
+              </div>
+
+              <div className="flex justify-end gap-3 pt-3 border-t border-gray-100">
+                <button
+                  type="button"
+                  onClick={() => setShowAddStoreModal(false)}
+                  className="px-4 py-2 text-sm font-medium text-gray-600 hover:bg-gray-100 rounded-lg"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  className="px-5 py-2 text-sm font-bold bg-blue-600 text-white rounded-lg hover:bg-blue-700 shadow-xs"
+                >
+                  Guardar Tienda
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL REGISTRAR ACTIVIDAD EN BITÁCORA */}
       {showBitacoraModal && (
         <div className="fixed inset-0 bg-gray-900/50 backdrop-blur-xs flex items-center justify-center p-4 z-50">
           <div className="bg-white rounded-2xl border border-gray-200 shadow-xl max-w-md w-full p-6 space-y-4">
@@ -610,7 +889,6 @@ function App() {
             </div>
 
             <form onSubmit={handleGuardarActividad} className="space-y-4">
-              {/* ASIGNAR RESPONSABLE */}
               <div>
                 <label className="block text-xs font-bold text-gray-700 uppercase mb-1">
                   👤 Encargado / Responsable
@@ -685,7 +963,7 @@ function App() {
         </div>
       )}
 
-      {/* MODAL HISTORIAL DE BITÁCORA CON BUSCADOR Y FILTROS */}
+      {/* MODAL HISTORIAL DE BITÁCORA */}
       {showHistorialModal && (
         <div className="fixed inset-0 bg-gray-900/50 backdrop-blur-xs flex items-center justify-center p-4 z-50">
           <div className="bg-white rounded-2xl border border-gray-200 shadow-xl max-w-3xl w-full p-6 space-y-4">
@@ -705,7 +983,7 @@ function App() {
               </button>
             </div>
 
-            {/* CONTROLES DE BUSCADOR Y FILTROS DE BITÁCORA */}
+            {/* BUSCADOR Y FILTROS DE BITÁCORA */}
             <div className="space-y-3 bg-gray-50 p-3 rounded-xl border border-gray-200">
               <div className="relative">
                 <input 
@@ -721,9 +999,7 @@ function App() {
                 )}
               </div>
 
-              {/* Filtros por Responsable y por Producto */}
               <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 text-xs">
-                {/* Filtro Responsable */}
                 <div className="flex items-center gap-1.5 flex-wrap">
                   <span className="font-bold text-gray-600">Encargado:</span>
                   {['TODOS', ...RESPONSABLES].map(r => (
@@ -741,7 +1017,6 @@ function App() {
                   ))}
                 </div>
 
-                {/* Filtro Producto */}
                 <div className="flex items-center gap-1.5">
                   <span className="font-bold text-gray-600">Producto:</span>
                   <select
@@ -764,7 +1039,6 @@ function App() {
                   <div key={act.id} className="p-4 rounded-xl border border-gray-200 bg-white hover:border-blue-300 hover:shadow-xs transition-all space-y-2">
                     <div className="flex flex-wrap justify-between items-center text-xs gap-2">
                       <div className="flex items-center gap-2">
-                        {/* Tag de Encargado */}
                         <span className="font-black bg-blue-600 text-white px-2 py-0.5 rounded text-[10px] tracking-wide">
                           👤 {act.responsable}
                         </span>
@@ -773,7 +1047,6 @@ function App() {
                           {act.tiendaLinea}
                         </span>
 
-                        {/* Tag de Producto */}
                         {act.producto && (
                           <span className="text-[10px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200 px-2 py-0.5 rounded">
                             {act.producto}
