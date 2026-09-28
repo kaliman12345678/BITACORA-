@@ -69,7 +69,7 @@ const BITACORA_INICIAL: ActividadBitacora[] = [
 ];
 
 function App() {
-  // Persistencia con localStorage (actualizado con bpo y coordina)
+  // Persistencia con localStorage
   const [tiendas, setTiendas] = useState<Tienda[]>(() => {
     const saved = localStorage.getItem('bitacora_tiendas_v2');
     return saved ? JSON.parse(saved) : TIENDAS_INICIALES;
@@ -114,10 +114,17 @@ function App() {
     presupuesto: 200000
   });
 
-  // Estados para Bitácora
+  // Estados para Modal de Bitácora
   const [showBitacoraModal, setShowBitacoraModal] = useState(false);
   const [showHistorialModal, setShowHistorialModal] = useState(false);
-  const [selectedTiendaBitacora, setSelectedTiendaBitacora] = useState('');
+  
+  // Campo Fecha en la Bitácora (por defecto fecha actual ISO YYYY-MM-DD)
+  const todayISO = new Date().toISOString().split('T')[0];
+  const [fechaBitacoraInput, setFechaBitacoraInput] = useState(todayISO);
+
+  // Autocomplete / Combobox didáctico de tiendas para la Bitácora
+  const [tiendaInputText, setTiendaInputText] = useState('');
+  const [showStoreDropdown, setShowStoreDropdown] = useState(false);
   const [responsableBitacora, setResponsableBitacora] = useState<Responsable>('OSCAR');
   const [actividadTexto, setActividadTexto] = useState('');
 
@@ -134,7 +141,14 @@ function App() {
   // Lista única de productos
   const productosUnicos = ['TODOS', ...Array.from(new Set(tiendas.map(t => t.producto)))];
 
-  // Filtrado de tiendas principales incluyendo BPO y Coordina
+  // Filtrado didáctico de tiendas para el combobox de la bitácora
+  const tiendasAutocompletar = tiendas.filter(t => 
+    t.linea.toLowerCase().includes(tiendaInputText.toLowerCase()) ||
+    t.numero.includes(tiendaInputText) ||
+    t.producto.toLowerCase().includes(tiendaInputText.toLowerCase())
+  );
+
+  // Filtrado de tiendas principales
   const tiendasFiltradas = tiendas.filter(t => {
     const searchLower = searchTerm.toLowerCase();
     const matchesSearch = 
@@ -289,7 +303,7 @@ function App() {
     setTimeout(() => setFeedback(null), 4000);
   };
 
-  // DESCARGAR EXCEL COMPATIBLE INCLUYENDO LAS 2 NUEVAS COLUMNAS (BPO Y COORDINA)
+  // DESCARGAR EXCEL COMPATIBLE
   const handleDownloadExcel = () => {
     const headers = "FECHA;NUMERO;LINEA;BPO;COORDINA;PRODUCTO;TRAFI;PRESUPUESTO\n";
     const rows = tiendasFiltradas.map(t => 
@@ -307,7 +321,7 @@ function App() {
     link.click();
     document.body.removeChild(link);
 
-    setFeedback("✓ Archivo Excel descargado con las 8 columnas (incluyendo BPO y COORDINA).");
+    setFeedback("✓ Archivo Excel descargado correctamente.");
     setTimeout(() => setFeedback(null), 4000);
   };
 
@@ -347,21 +361,22 @@ function App() {
     setTimeout(() => setFeedback(null), 4000);
   };
 
-  // Guardar actividad en Bitácora
+  // Guardar actividad en Bitácora (con Fecha elegida + Autocomplete Didáctico)
   const handleGuardarActividad = (e: React.FormEvent) => {
     e.preventDefault();
     if (!actividadTexto.trim()) return;
 
-    const hoy = new Date();
-    const fechaFormateada = `${hoy.getDate()} Sep ${hoy.getFullYear()} - ${hoy.getHours().toString().padStart(2, '0')}:${hoy.getMinutes().toString().padStart(2, '0')}`;
+    // Formatear la fecha elegida por el usuario
+    const [year, month, day] = fechaBitacoraInput.split('-');
+    const fechaPersonalizada = `${day}/${month}/${year}`;
 
-    const tiendaEncontrada = tiendas.find(t => t.linea === selectedTiendaBitacora);
+    const tiendaEncontrada = tiendas.find(t => t.linea.toLowerCase() === tiendaInputText.trim().toLowerCase());
     const productoTienda = tiendaEncontrada ? tiendaEncontrada.producto : 'GENERAL';
 
     const nuevaActividad: ActividadBitacora = {
       id: Date.now().toString(),
-      fecha: fechaFormateada,
-      tiendaLinea: selectedTiendaBitacora || 'General',
+      fecha: fechaPersonalizada,
+      tiendaLinea: tiendaInputText.trim() || 'General',
       producto: productoTienda,
       responsable: responsableBitacora,
       descripcion: actividadTexto
@@ -370,8 +385,9 @@ function App() {
     setBitacoraList([nuevaActividad, ...bitacoraList]);
     setShowBitacoraModal(false);
     setActividadTexto('');
-    setSelectedTiendaBitacora('');
-    setFeedback(`✓ Actividad asignada a ${responsableBitacora} guardada correctamente.`);
+    setTiendaInputText('');
+    setFechaBitacoraInput(todayISO);
+    setFeedback(`✓ Actividad (${fechaPersonalizada}) asignada a ${responsableBitacora} guardada correctamente.`);
     setTimeout(() => setFeedback(null), 4000);
   };
 
@@ -588,13 +604,13 @@ function App() {
               </div>
             </div>
 
-            {/* Tabla Principal de Tiendas con las 2 Nuevas Columnas (BPO y COORDINA) */}
+            {/* Tabla Principal de Tiendas */}
             <div className="bg-white rounded-xl border border-gray-200 shadow-xs overflow-hidden">
               <div className="px-6 py-4 border-b border-gray-200 bg-gray-50 flex justify-between items-center">
                 <h2 className="font-semibold text-gray-800 text-base">
                   Tiendas y Presupuestos {searchTerm && <span className="text-sm font-normal text-gray-500">({tiendasFiltradas.length} encontradas)</span>}
                 </h2>
-                <span className="text-xs text-gray-500 font-medium">Formato completo de 8 columnas (incluyendo BPO y Coordina)</span>
+                <span className="text-xs text-gray-500 font-medium">Usa ⬆️ ⬇️ o arrastra las filas (☰) para cambiar el orden</span>
               </div>
               
               <div className="overflow-x-auto">
@@ -630,7 +646,6 @@ function App() {
                         </div>
                       </th>
 
-                      {/* NUEVA COLUMNA: BPO */}
                       <th className="px-3 py-3 font-semibold">
                         <div className="flex items-center gap-1">
                           <span>BPO</span>
@@ -644,7 +659,6 @@ function App() {
                         </div>
                       </th>
 
-                      {/* NUEVA COLUMNA: COORDINA */}
                       <th className="px-3 py-3 font-semibold">
                         <div className="flex items-center gap-1">
                           <span>Coordina</span>
@@ -722,7 +736,6 @@ function App() {
                                   className="w-full bg-white border border-gray-300 rounded px-2 py-1 text-xs font-bold"
                                 />
                               </td>
-                              {/* EDICIÓN BPO */}
                               <td className="px-2 py-2">
                                 <input 
                                   type="text" 
@@ -731,7 +744,6 @@ function App() {
                                   className="w-full bg-white border border-gray-300 rounded px-2 py-1 text-xs font-medium uppercase"
                                 />
                               </td>
-                              {/* EDICIÓN COORDINA */}
                               <td className="px-2 py-2">
                                 <input 
                                   type="text" 
@@ -819,14 +831,12 @@ function App() {
                             <td className="px-3 py-3 font-mono text-xs font-medium text-gray-900">{tienda.numero}</td>
                             <td className="px-3 py-3 font-semibold text-gray-900">{tienda.linea}</td>
                             
-                            {/* VALOR BPO */}
                             <td className="px-3 py-3 font-medium text-xs">
                               <span className="bg-blue-50 text-blue-800 border border-blue-200 px-2 py-0.5 rounded">
                                 {tienda.bpo || '-'}
                               </span>
                             </td>
 
-                            {/* VALOR COORDINA */}
                             <td className="px-3 py-3 font-medium text-xs text-gray-700">
                               <span className="bg-amber-50 text-amber-900 border border-amber-200 px-2 py-0.5 rounded font-bold">
                                 {tienda.coordina || '-'}
@@ -901,7 +911,7 @@ function App() {
               </div>
             </div>
             
-            {/* Tabla de revisión con las 8 columnas */}
+            {/* Tabla de revisión */}
             <div className="overflow-x-auto max-h-96">
               <table className="w-full text-left border-collapse text-sm">
                 <thead className="sticky top-0 bg-gray-100 text-gray-600 text-xs uppercase">
@@ -1072,7 +1082,7 @@ function App() {
         </div>
       )}
 
-      {/* MODAL REGISTRAR ACTIVIDAD EN BITÁCORA */}
+      {/* MODAL REGISTRAR ACTIVIDAD EN BITÁCORA (MEJORADO CON COMBOBOX DIDÁCTICO Y SELECCIÓN DE FECHA) */}
       {showBitacoraModal && (
         <div className="fixed inset-0 bg-gray-900/50 backdrop-blur-xs flex items-center justify-center p-4 z-50">
           <div className="bg-white rounded-2xl border border-gray-200 shadow-xl max-w-md w-full p-6 space-y-4">
@@ -1087,9 +1097,10 @@ function App() {
             </div>
 
             <form onSubmit={handleGuardarActividad} className="space-y-4">
+              {/* ENCARGADO / RESPONSABLE */}
               <div>
                 <label className="block text-xs font-bold text-gray-700 uppercase mb-1">
-                  👤 Encargado / Responsable
+                  👤 Encargado / Responsable *
                 </label>
                 <div className="grid grid-cols-3 gap-2">
                   {RESPONSABLES.map((resp) => (
@@ -1109,27 +1120,80 @@ function App() {
                 </div>
               </div>
 
+              {/* SELECCIÓN / SELECCIONADOR DE FECHA DE LA ACTIVIDAD */}
               <div>
-                <label className="block text-xs font-semibold text-gray-600 uppercase mb-1">
-                  Tienda / Línea (Opcional)
+                <label className="block text-xs font-bold text-gray-700 uppercase mb-1">
+                  📅 Fecha de la actividad *
                 </label>
-                <select
-                  value={selectedTiendaBitacora}
-                  onChange={(e) => setSelectedTiendaBitacora(e.target.value)}
-                  className="w-full border border-gray-300 rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none bg-gray-50"
-                >
-                  <option value="">-- Seleccionar tienda --</option>
-                  {tiendas.map((t) => (
-                    <option key={t.id} value={t.linea}>
-                      {t.linea} ({t.numero}) - {t.producto}
-                    </option>
-                  ))}
-                </select>
+                <input
+                  type="date"
+                  required
+                  value={fechaBitacoraInput}
+                  onChange={(e) => setFechaBitacoraInput(e.target.value)}
+                  className="w-full border border-gray-300 rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none bg-gray-50 font-medium"
+                />
+              </div>
+
+              {/* BUSCADOR DE TIENDA DIDÁCTICO (COMBOBOX INTERACTIVO QUE PERMITE ESCRIBIR Y BUSCAR) */}
+              <div className="relative">
+                <label className="block text-xs font-bold text-gray-700 uppercase mb-1">
+                  🏬 Tienda / Línea (Escribe para buscar o ingresar)
+                </label>
+                <div className="relative">
+                  <input
+                    type="text"
+                    value={tiendaInputText}
+                    onChange={(e) => {
+                      setTiendaInputText(e.target.value);
+                      setShowStoreDropdown(true);
+                    }}
+                    onFocus={() => setShowStoreDropdown(true)}
+                    placeholder="Escribe o busca una tienda (ej: NOVA HOME)..."
+                    className="w-full border border-gray-300 rounded-lg pl-9 pr-8 py-2.5 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none bg-white"
+                  />
+                  <span className="absolute left-3 top-3 text-gray-400 text-xs">🔍</span>
+                  {tiendaInputText && (
+                    <button 
+                      type="button"
+                      onClick={() => {
+                        setTiendaInputText('');
+                        setShowStoreDropdown(false);
+                      }} 
+                      className="absolute right-3 top-2.5 text-xs text-gray-400 hover:text-gray-600 bg-gray-100 rounded-full w-4 h-4 flex items-center justify-center"
+                    >
+                      ✕
+                    </button>
+                  )}
+                </div>
+
+                {/* Lista desplegable didáctica de sugerencias */}
+                {showStoreDropdown && tiendasAutocompletar.length > 0 && (
+                  <div className="absolute left-0 right-0 mt-1 max-h-48 overflow-y-auto bg-white border border-gray-200 rounded-lg shadow-lg z-30 py-1 text-xs divide-y divide-gray-100">
+                    {tiendasAutocompletar.map((t) => (
+                      <div
+                        key={t.id}
+                        onClick={() => {
+                          setTiendaInputText(t.linea);
+                          setShowStoreDropdown(false);
+                        }}
+                        className="px-3 py-2 hover:bg-blue-50 cursor-pointer flex justify-between items-center transition-colors"
+                      >
+                        <div>
+                          <span className="font-bold text-gray-900">{t.linea}</span>
+                          <span className="text-gray-400 ml-2 font-mono">({t.numero})</span>
+                        </div>
+                        <span className="bg-gray-100 text-gray-600 px-1.5 py-0.5 rounded text-[10px] font-semibold">
+                          {t.producto}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-gray-600 uppercase mb-1">
-                  ¿Qué hiciste?
+                <label className="block text-xs font-bold text-gray-700 uppercase mb-1">
+                  💬 ¿Qué hiciste? *
                 </label>
                 <textarea
                   required
