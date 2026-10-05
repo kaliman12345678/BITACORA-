@@ -1,7 +1,41 @@
 @import "tailwindcss";
 
 body {
-  font-family: Inter, system-ui, Avenir, Helvetica, Arial, sans-serif;
-  background-color: #f9fafb;
-  color: #111827;
+  font-family: 'Plus Jakarta Sans', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  background-color: #f1f4f9;
+  color: #0f172a;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Custom Soft Dashboard Glass & Neumorphic Utilities */
+.dashboard-card {
+  background: #ffffff;
+  border: 1px solid rgba(226, 232, 240, 0.7);
+  box-shadow: 0 10px 25px -5px rgba(15, 23, 42, 0.03), 0 8px 10px -6px rgba(15, 23, 42, 0.02);
+  border-radius: 1.5rem;
+}
+
+.dashboard-card-hover {
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.dashboard-card-hover:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 20px 35px -10px rgba(99, 102, 241, 0.08), 0 10px 15px -5px rgba(15, 23, 42, 0.04);
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: #f1f5f9;
+  border-radius: 9999px;
+}
+::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 9999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
 }
