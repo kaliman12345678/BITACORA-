@@ -1,23 +1,34 @@
 import { useState, useRef, useEffect } from 'react'
 
-// Estructura basada en los datos reales del pantallazo
+// Estructura de Tiendas
 interface Tienda {
   id: string;
   fecha: string;
   numero: string;
-  linea: string; // Nombre de la tienda / línea
-  bpo: string;    // Nueva columna BPO
-  coordina: string; // Nueva columna Coordina
+  linea: string;
+  bpo: string;
+  coordina: string;
   producto: string;
   trafi: string;
   presupuesto: number;
+}
+
+// Estructura para Rendimiento (CPR y Mensajes)
+interface RendimientoTienda {
+  id: string;
+  linea: string;
+  producto: string;
+  fecha: string; // Formato YYYY-MM-DD
+  cpr: number; // Costo por Respuesta / Registro ($)
+  mensajes: number; // Cantidad de mensajes recibidos
+  gasto: number; // Gasto total
 }
 
 type Responsable = 'OSCAR' | 'MATEO' | 'WILLINTONG';
 
 interface ActividadBitacora {
   id: string;
-  fecha: string; // YYYY-MM-DD o texto formateado
+  fecha: string;
   tiendaLinea: string;
   producto: string;
   responsable: Responsable;
@@ -68,7 +79,38 @@ const BITACORA_INICIAL: ActividadBitacora[] = [
   { id: '3', fecha: '26/09/2026', tiendaLinea: 'DANTE NOVA', producto: 'CAMISETAS', responsable: 'WILLINTONG', descripcion: 'Aumento de presupuesto semanal.' }
 ];
 
+// Generador de datos iniciales de Rendimiento (Hoy vs Hace 7 días vs Ayer)
+const generateInitialRendimiento = (): RendimientoTienda[] => {
+  const fechas = ['2026-10-05', '2026-10-04', '2026-09-28'];
+  const data: RendimientoTienda[] = [];
+
+  TIENDAS_INICIALES.forEach(t => {
+    fechas.forEach((f, idx) => {
+      // Simulación realista basada en el presupuesto de la tienda
+      const baseCpr = Math.floor(2500 + Math.random() * 2000); // $2,500 - $4,500
+      const cprVariation = idx === 0 ? baseCpr : idx === 1 ? baseCpr * 1.15 : baseCpr * 1.25;
+      const gasto = t.presupuesto;
+      const mensajes = Math.floor(gasto / cprVariation);
+
+      data.push({
+        id: `${t.id}-${f}`,
+        linea: t.linea,
+        producto: t.producto,
+        fecha: f,
+        cpr: Math.round(cprVariation),
+        mensajes,
+        gasto
+      });
+    });
+  });
+
+  return data;
+};
+
 function App() {
+  // Navegación entre Hojas ("presupuestos" vs "rendimiento")
+  const [activeTab, setActiveTab] = useState<'presupuestos' | 'rendimiento'>('presupuestos');
+
   // Persistencia con localStorage
   const [tiendas, setTiendas] = useState<Tienda[]>(() => {
     const saved = localStorage.getItem('bitacora_tiendas_v2');
@@ -80,6 +122,11 @@ function App() {
     return saved ? JSON.parse(saved) : BITACORA_INICIAL;
   });
 
+  const [rendimientoData] = useState<RendimientoTienda[]>(() => {
+    const saved = localStorage.getItem('rendimiento_data_v1');
+    return saved ? JSON.parse(saved) : generateInitialRendimiento();
+  });
+
   useEffect(() => {
     localStorage.setItem('bitacora_tiendas_v2', JSON.stringify(tiendas));
   }, [tiendas]);
@@ -87,6 +134,14 @@ function App() {
   useEffect(() => {
     localStorage.setItem('bitacora_historial_v2', JSON.stringify(bitacoraList));
   }, [bitacoraList]);
+
+  useEffect(() => {
+    localStorage.setItem('rendimiento_data_v1', JSON.stringify(rendimientoData));
+  }, [rendimientoData]);
+
+  // ESTADOS DE COMPARACIÓN DE RENDIMIENTO (Días seleccionados por el usuario)
+  const [fechaActual, setFechaActual] = useState<string>('2026-10-05'); // Hoy
+  const [fechaComparar, setFechaComparar] = useState<string>('2026-10-04'); // Ayer por defecto
 
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedProducto, setSelectedProducto] = useState<string>('TODOS');
@@ -117,46 +172,36 @@ function App() {
   // Estados para Modal de Bitácora
   const [showBitacoraModal, setShowBitacoraModal] = useState(false);
   const [showHistorialModal, setShowHistorialModal] = useState(false);
-  
-  // ESTADO NUEVO: PANTALLA COMPLETA PARA EL HISTORIAL DE BITÁCORA
   const [isBitacoraFullScreen, setIsBitacoraFullScreen] = useState(false);
 
-  // Campo Fecha en la Bitácora
   const todayISO = new Date().toISOString().split('T')[0];
   const [fechaBitacoraInput, setFechaBitacoraInput] = useState(todayISO);
 
-  // Autocomplete didáctico de tiendas para la Bitácora
   const [tiendaInputText, setTiendaInputText] = useState('');
   const [showStoreDropdown, setShowStoreDropdown] = useState(false);
   const [responsableBitacora, setResponsableBitacora] = useState<Responsable>('OSCAR');
   const [actividadTexto, setActividadTexto] = useState('');
 
-  // ESTADO PARA EDICIÓN Y ELIMINACIÓN DE REGISTROS DE BITÁCORA
   const [editingBitacoraId, setEditingBitacoraId] = useState<string | null>(null);
   const [editingBitacoraData, setEditingBitacoraData] = useState<ActividadBitacora | null>(null);
 
-  // FILTROS DEL HISTORIAL DE BITÁCORA
   const [bitacoraSearch, setBitacoraSearch] = useState('');
   const [bitacoraProductoFilter, setBitacoraProductoFilter] = useState('TODOS');
   const [bitacoraResponsableFilter, setBitacoraResponsableFilter] = useState('TODOS');
   const [bitacoraFechaFilter, setBitacoraFechaFilter] = useState('');
 
-  // Estado para menú de Copiar
   const [showCopyMenu, setShowCopyMenu] = useState(false);
-
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const rendimientoFileRef = useRef<HTMLInputElement>(null);
 
-  // Lista única de productos
   const productosUnicos = ['TODOS', ...Array.from(new Set(tiendas.map(t => t.producto)))];
 
-  // Filtrado didáctico de tiendas para el combobox de la bitácora
   const tiendasAutocompletar = tiendas.filter(t => 
     t.linea.toLowerCase().includes(tiendaInputText.toLowerCase()) ||
     t.numero.includes(tiendaInputText) ||
     t.producto.toLowerCase().includes(tiendaInputText.toLowerCase())
   );
 
-  // Filtrado de tiendas principales
   const tiendasFiltradas = tiendas.filter(t => {
     const searchLower = searchTerm.toLowerCase();
     const matchesSearch = 
@@ -171,7 +216,6 @@ function App() {
     return matchesSearch && matchesProducto;
   });
 
-  // Reordenar filas: Mover arriba o abajo
   const moveRow = (indexInFiltered: number, direction: 'up' | 'down') => {
     const targetFilteredIndex = direction === 'up' ? indexInFiltered - 1 : indexInFiltered + 1;
     if (targetFilteredIndex < 0 || targetFilteredIndex >= tiendasFiltradas.length) return;
@@ -190,7 +234,6 @@ function App() {
     }
   };
 
-  // Drag and drop handlers
   const handleDragStart = (indexInFiltered: number) => {
     setDraggedIndex(indexInFiltered);
   };
@@ -218,7 +261,6 @@ function App() {
     setDraggedIndex(null);
   };
 
-  // FILTRADO COMPLETO DE BITÁCORA
   const bitacoraFiltrada = bitacoraList.filter(item => {
     const searchLower = bitacoraSearch.toLowerCase();
     const matchesSearch = 
@@ -270,13 +312,23 @@ function App() {
     }, 4000);
   };
 
-  // Iniciar edición manual de tienda
+  // Carga de pantallazo de rendimiento
+  const handleRendimientoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files.length > 0) {
+      setUploadState('reading');
+      setTimeout(() => {
+        setUploadState('idle');
+        setFeedback("✓ Pantallazo de rendimiento leído. Datos de CPR y Mensajes actualizados.");
+        setTimeout(() => setFeedback(null), 4000);
+      }, 1500);
+    }
+  };
+
   const handleStartEdit = (tienda: Tienda) => {
     setEditingId(tienda.id);
     setEditFormData({ ...tienda });
   };
 
-  // Guardar edición manual de tienda
   const handleSaveEdit = () => {
     if (!editFormData) return;
     setTiendas(tiendas.map(t => t.id === editFormData.id ? editFormData : t));
@@ -286,20 +338,17 @@ function App() {
     setTimeout(() => setFeedback(null), 3500);
   };
 
-  // Cancelar edición de tienda
   const handleCancelEdit = () => {
     setEditingId(null);
     setEditFormData(null);
   };
 
-  // ELIMINAR REGISTRO DE BITÁCORA
   const handleDeleteBitacora = (id: string) => {
     setBitacoraList(bitacoraList.filter(item => item.id !== id));
     setFeedback("✓ Registro eliminado de la bitácora.");
     setTimeout(() => setFeedback(null), 3000);
   };
 
-  // EDITAR REGISTRO DE BITÁCORA
   const handleStartEditBitacora = (act: ActividadBitacora) => {
     setEditingBitacoraId(act.id);
     setEditingBitacoraData({ ...act });
@@ -314,7 +363,6 @@ function App() {
     setTimeout(() => setFeedback(null), 3500);
   };
 
-  // Guardar nueva tienda manual
   const handleCreateStore = (e: React.FormEvent) => {
     e.preventDefault();
     if (!newStoreData.linea.trim()) return;
@@ -340,7 +388,6 @@ function App() {
     setTimeout(() => setFeedback(null), 4000);
   };
 
-  // DESCARGAR EXCEL COMPATIBLE
   const handleDownloadExcel = () => {
     const headers = "FECHA;NUMERO;LINEA;BPO;COORDINA;PRODUCTO;TRAFI;PRESUPUESTO\n";
     const rows = tiendasFiltradas.map(t => 
@@ -362,7 +409,6 @@ function App() {
     setTimeout(() => setFeedback(null), 4000);
   };
 
-  // Copiar datos especificando columna o toda la tabla
   const copyToClipboard = (type: 'all' | 'numero' | 'linea' | 'bpo' | 'coordina' | 'producto' | 'presupuesto') => {
     let text = '';
     let nombreColumna = '';
@@ -398,7 +444,6 @@ function App() {
     setTimeout(() => setFeedback(null), 4000);
   };
 
-  // Guardar actividad en Bitácora
   const handleGuardarActividad = (e: React.FormEvent) => {
     e.preventDefault();
     if (!actividadTexto.trim()) return;
@@ -427,40 +472,87 @@ function App() {
     setTimeout(() => setFeedback(null), 4000);
   };
 
+  // CÁLCULO DE RENDIMIENTO Y COMPARACIÓN ENTRE DÍAS
+  const dataDiaActual = rendimientoData.filter(r => r.fecha === fechaActual);
+  const dataDiaComparar = rendimientoData.filter(r => r.fecha === fechaComparar);
+
+  // Totales Día Actual
+  const totalMensajesActual = dataDiaActual.reduce((acc, r) => acc + r.mensajes, 0);
+  const totalGastoActual = dataDiaActual.reduce((acc, r) => acc + r.gasto, 0);
+  const cprPromedioActual = totalMensajesActual > 0 ? Math.round(totalGastoActual / totalMensajesActual) : 0;
+
+  // Totales Día Comparar
+  const totalMensajesComparar = dataDiaComparar.reduce((acc, r) => acc + r.mensajes, 0);
+  const totalGastoComparar = dataDiaComparar.reduce((acc, r) => acc + r.gasto, 0);
+  const cprPromedioComparar = totalMensajesComparar > 0 ? Math.round(totalGastoComparar / totalMensajesComparar) : 0;
+
+  // Variaciones %
+  const variacionCpr = cprPromedioComparar > 0 
+    ? (((cprPromedioActual - cprPromedioComparar) / cprPromedioComparar) * 100).toFixed(1)
+    : '0';
+
+  const variacionMensajes = totalMensajesComparar > 0
+    ? (((totalMensajesActual - totalMensajesComparar) / totalMensajesComparar) * 100).toFixed(1)
+    : '0';
+
   return (
     <div className="min-h-screen bg-gray-50 text-gray-900 font-sans">
-      {/* Navbar con Buscador */}
-      <header className="bg-white border-b border-gray-200 px-6 py-4 flex flex-col md:flex-row md:items-center justify-between gap-4 sticky top-0 z-10 shadow-xs">
-        <div className="flex items-center gap-3">
-          <div className="bg-blue-600 text-white w-9 h-9 rounded-lg flex items-center justify-center font-bold text-lg shadow-xs">
-            B
+      {/* Navbar con pestañas de Navegación principales ("Hojas") */}
+      <header className="bg-white border-b border-gray-200 sticky top-0 z-10 shadow-xs">
+        <div className="px-6 py-3 flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <div className="bg-blue-600 text-white w-9 h-9 rounded-lg flex items-center justify-center font-bold text-lg shadow-xs">
+              B
+            </div>
+            <div>
+              <h1 className="text-xl font-bold text-gray-900 leading-none">Bitácora</h1>
+              <p className="text-xs text-gray-500 mt-0.5">Asistente diario de tiendas y rendimiento</p>
+            </div>
           </div>
-          <div>
-            <h1 className="text-xl font-bold text-gray-900 leading-none">Bitácora</h1>
-            <p className="text-xs text-gray-500 mt-0.5">Control de tiendas y presupuestos</p>
-          </div>
-        </div>
-        
-        {/* Buscador siempre accesible */}
-        <div className="relative w-full md:w-96">
-          <input 
-            type="text" 
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            placeholder="Buscar por nombre, teléfono, bpo, coordina o producto..." 
-            className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-gray-50 focus:bg-white transition-all"
-          />
-          <div className="absolute left-3 top-2.5 text-gray-400 text-sm">
-            🔍
-          </div>
-          {searchTerm && (
-            <button 
-              onClick={() => setSearchTerm('')} 
-              className="absolute right-3 top-2.5 text-xs bg-gray-200 text-gray-600 rounded-full w-4 h-4 flex items-center justify-center hover:bg-gray-300"
+          
+          {/* NAVEGACIÓN ENTRE HOJAS INTERACTIVAS */}
+          <div className="flex items-center bg-gray-100 p-1 rounded-xl border border-gray-200">
+            <button
+              onClick={() => setActiveTab('presupuestos')}
+              className={`px-4 py-2 rounded-lg text-xs font-bold transition-all flex items-center gap-2 ${
+                activeTab === 'presupuestos'
+                  ? 'bg-white text-blue-600 shadow-xs'
+                  : 'text-gray-600 hover:text-gray-900'
+              }`}
             >
-              ✕
+              📊 Hoja 1: Presupuestos y Tiendas
             </button>
-          )}
+            <button
+              onClick={() => setActiveTab('rendimiento')}
+              className={`px-4 py-2 rounded-lg text-xs font-bold transition-all flex items-center gap-2 ${
+                activeTab === 'rendimiento'
+                  ? 'bg-white text-blue-600 shadow-xs'
+                  : 'text-gray-600 hover:text-gray-900'
+              }`}
+            >
+              📈 Hoja 2: Rendimiento (CPR y Mensajes)
+            </button>
+          </div>
+
+          {/* Buscador siempre accesible */}
+          <div className="relative w-full md:w-80">
+            <input 
+              type="text" 
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              placeholder="Buscar tienda, producto..." 
+              className="w-full pl-9 pr-4 py-1.5 border border-gray-300 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-blue-500 bg-gray-50 focus:bg-white"
+            />
+            <span className="absolute left-3 top-2 text-gray-400 text-xs">🔍</span>
+            {searchTerm && (
+              <button 
+                onClick={() => setSearchTerm('')} 
+                className="absolute right-2.5 top-2 text-xs bg-gray-200 text-gray-600 rounded-full w-4 h-4 flex items-center justify-center"
+              >
+                ✕
+              </button>
+            )}
+          </div>
         </div>
       </header>
 
@@ -469,13 +561,13 @@ function App() {
         
         {/* Feedback Rápido */}
         {feedback && (
-          <div className="bg-emerald-50 border border-emerald-200 text-emerald-800 px-4 py-3 rounded-lg flex items-center gap-2 font-medium shadow-xs animate-fade-in text-sm">
+          <div className="bg-emerald-50 border border-emerald-200 text-emerald-800 px-4 py-3 rounded-lg flex items-center gap-2 font-medium shadow-xs text-sm">
             <span className="text-lg">✓</span> {feedback}
           </div>
         )}
 
-        {/* Dashboard Resumen */}
-        {uploadState === 'idle' && (
+        {/* HOJA 1: PRESUPUESTOS Y TIENDAS */}
+        {activeTab === 'presupuestos' && uploadState === 'idle' && (
           <>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-xs">
@@ -540,7 +632,6 @@ function App() {
                   📊 Descargar Excel
                 </button>
 
-                {/* Botón Copiar con Opciones de Columna */}
                 <div className="relative">
                   <button 
                     onClick={() => setShowCopyMenu(!showCopyMenu)}
@@ -914,12 +1005,249 @@ function App() {
           </>
         )}
 
+        {/* HOJA 2: SEGUIMIENTO DE RENDIMIENTO (CPR Y CANTIDAD DE MENSAJES) CON COMPARATIVA INTERACTIVA ENTRE DÍAS */}
+        {activeTab === 'rendimiento' && (
+          <div className="space-y-6 animate-fade-in">
+            
+            {/* PANEL DE CONTROL DE COMPARACIÓN Y BOTÓN SUBIR PANTALLAZO */}
+            <div className="bg-white p-5 rounded-2xl border border-gray-200 shadow-xs space-y-4">
+              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-gray-100 pb-4">
+                <div>
+                  <h2 className="text-lg font-bold text-gray-900">📈 Comparativa de Rendimiento por Días</h2>
+                  <p className="text-xs text-gray-500 mt-0.5">Analiza variaciones de CPR y mensajes recibidos entre fechas personalizadas</p>
+                </div>
+
+                {/* Subir pantallazo de Rendimiento */}
+                <div>
+                  <input 
+                    type="file" 
+                    accept="image/*" 
+                    className="hidden" 
+                    ref={rendimientoFileRef} 
+                    onChange={handleRendimientoUpload} 
+                  />
+                  <button 
+                    onClick={() => rendimientoFileRef.current?.click()}
+                    className="bg-blue-600 text-white px-5 py-2 rounded-lg text-xs font-bold hover:bg-blue-700 transition-all shadow-xs flex items-center gap-2"
+                  >
+                    📷 Subir Pantallazo de Rendimiento
+                  </button>
+                </div>
+              </div>
+
+              {/* SELECTORES DE FECHA Y PRESETS RÁPIDOS */}
+              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-gray-50 p-3 rounded-xl border border-gray-200 text-xs">
+                <div className="flex flex-wrap items-center gap-3">
+                  <div className="flex items-center gap-1.5">
+                    <span className="font-bold text-gray-700">Día Principal:</span>
+                    <input 
+                      type="date"
+                      value={fechaActual}
+                      onChange={(e) => setFechaActual(e.target.value)}
+                      className="border border-gray-300 rounded p-1.5 font-bold bg-white focus:outline-none"
+                    />
+                  </div>
+
+                  <span className="font-bold text-blue-600 text-sm">VS</span>
+
+                  <div className="flex items-center gap-1.5">
+                    <span className="font-bold text-gray-700">Día a Comparar:</span>
+                    <input 
+                      type="date"
+                      value={fechaComparar}
+                      onChange={(e) => setFechaComparar(e.target.value)}
+                      className="border border-gray-300 rounded p-1.5 font-bold bg-white focus:outline-none"
+                    />
+                  </div>
+                </div>
+
+                {/* BOTONES PRESETS DE COMPARACIÓN RÁPIDA */}
+                <div className="flex items-center gap-1.5 flex-wrap">
+                  <span className="font-semibold text-gray-500">Filtros Rápidos:</span>
+                  <button 
+                    onClick={() => { setFechaActual('2026-10-05'); setFechaComparar('2026-10-04'); }}
+                    className="bg-white border border-gray-300 hover:bg-blue-50 text-gray-800 font-bold px-2.5 py-1 rounded"
+                  >
+                    Ayer vs Hoy
+                  </button>
+                  <button 
+                    onClick={() => { setFechaActual('2026-10-05'); setFechaComparar('2026-09-28'); }}
+                    className="bg-white border border-gray-300 hover:bg-blue-50 text-gray-800 font-bold px-2.5 py-1 rounded"
+                  >
+                    Hoy vs Hace 7 días
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* TARJETAS RESUMEN DE VARIACIÓN (%) CPR Y MENSAJES */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              
+              {/* METRICA CPR */}
+              <div className="bg-white p-5 rounded-2xl border border-gray-200 shadow-xs space-y-2">
+                <div className="flex justify-between items-center text-xs text-gray-500 font-semibold uppercase tracking-wider">
+                  <span>Costo por Respuesta (CPR)</span>
+                  <span className="text-gray-400">Promedio</span>
+                </div>
+                <div className="flex items-baseline justify-between">
+                  <p className="text-3xl font-black text-gray-900 font-mono">{formatMoneda(cprPromedioActual)}</p>
+                  
+                  {/* Badge de Variación CPR (Bajar el CPR es POSITIVO verde) */}
+                  <span className={`px-2.5 py-1 rounded-full text-xs font-bold flex items-center gap-1 ${
+                    Number(variacionCpr) <= 0
+                      ? 'bg-emerald-100 text-emerald-800'
+                      : 'bg-rose-100 text-rose-800'
+                  }`}>
+                    {Number(variacionCpr) <= 0 ? `📉 ${variacionCpr}%` : `📈 +${variacionCpr}%`}
+                  </span>
+                </div>
+                <p className="text-xs text-gray-500">
+                  Comparado con {fechaComparar} ({formatMoneda(cprPromedioComparar)})
+                </p>
+              </div>
+
+              {/* METRICA MENSAJES */}
+              <div className="bg-white p-5 rounded-2xl border border-gray-200 shadow-xs space-y-2">
+                <div className="flex justify-between items-center text-xs text-gray-500 font-semibold uppercase tracking-wider">
+                  <span>Cantidad de Mensajes</span>
+                  <span className="text-gray-400">Total Recibidos</span>
+                </div>
+                <div className="flex items-baseline justify-between">
+                  <p className="text-3xl font-black text-blue-600 font-mono">{totalMensajesActual.toLocaleString('es-CO')}</p>
+                  
+                  {/* Badge de Variación Mensajes (Subir mensajes es POSITIVO verde) */}
+                  <span className={`px-2.5 py-1 rounded-full text-xs font-bold flex items-center gap-1 ${
+                    Number(variacionMensajes) >= 0
+                      ? 'bg-emerald-100 text-emerald-800'
+                      : 'bg-rose-100 text-rose-800'
+                  }`}>
+                    {Number(variacionMensajes) >= 0 ? `🚀 +${variacionMensajes}%` : `📉 ${variacionMensajes}%`}
+                  </span>
+                </div>
+                <p className="text-xs text-gray-500">
+                  Comparado con {fechaComparar} ({totalMensajesComparar.toLocaleString('es-CO')} msgs)
+                </p>
+              </div>
+
+              {/* METRICA GASTO TOTAL */}
+              <div className="bg-white p-5 rounded-2xl border border-gray-200 shadow-xs space-y-2">
+                <div className="flex justify-between items-center text-xs text-gray-500 font-semibold uppercase tracking-wider">
+                  <span>Gasto Total Ejecutado</span>
+                  <span className="text-gray-400">Inversión</span>
+                </div>
+                <p className="text-3xl font-black text-gray-900 font-mono">{formatMoneda(totalGastoActual)}</p>
+                <p className="text-xs text-gray-500">
+                  Inversión activa en las {dataDiaActual.length} tiendas
+                </p>
+              </div>
+
+            </div>
+
+            {/* TABLA COMPARATIVA DETALLADA POR TIENDA */}
+            <div className="bg-white rounded-2xl border border-gray-200 shadow-xs overflow-hidden">
+              <div className="px-6 py-4 border-b border-gray-200 bg-gray-50 flex justify-between items-center">
+                <h3 className="font-bold text-gray-900 text-base">
+                  Rendimiento por Tienda ({fechaActual} vs {fechaComparar})
+                </h3>
+                <span className="text-xs text-gray-500 font-semibold">🟢 Verde = Mejoró rendimiento | 🔴 Rojo = Requiere atención</span>
+              </div>
+
+              <div className="overflow-x-auto">
+                <table className="w-full text-left border-collapse text-sm">
+                  <thead>
+                    <tr className="bg-gray-100/80 text-gray-600 text-xs uppercase tracking-wider border-b border-gray-200">
+                      <th className="px-4 py-3 font-bold">Línea / Tienda</th>
+                      <th className="px-4 py-3 font-bold">Producto</th>
+                      <th className="px-4 py-3 font-bold text-right">CPR ({fechaActual})</th>
+                      <th className="px-4 py-3 font-bold text-right">CPR ({fechaComparar})</th>
+                      <th className="px-4 py-3 font-bold text-center">Var. CPR (%)</th>
+                      <th className="px-4 py-3 font-bold text-right">Mensajes ({fechaActual})</th>
+                      <th className="px-4 py-3 font-bold text-right">Mensajes ({fechaComparar})</th>
+                      <th className="px-4 py-3 font-bold text-center">Var. Mensajes (%)</th>
+                      <th className="px-4 py-3 font-bold text-center">Diagnóstico</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-200 text-gray-700">
+                    {dataDiaActual.map((item) => {
+                      const itemComparar = dataDiaComparar.find(c => c.linea === item.linea);
+                      
+                      const cprAnt = itemComparar ? itemComparar.cpr : 0;
+                      const msgAnt = itemComparar ? itemComparar.mensajes : 0;
+
+                      const diffCpr = cprAnt > 0 ? (((item.cpr - cprAnt) / cprAnt) * 100).toFixed(1) : '0';
+                      const diffMsg = msgAnt > 0 ? (((item.mensajes - msgAnt) / msgAnt) * 100).toFixed(1) : '0';
+
+                      const cprBajo = Number(diffCpr) <= 0;
+                      const msgSubio = Number(diffMsg) >= 0;
+
+                      return (
+                        <tr key={item.id} className="hover:bg-blue-50/40 transition-colors">
+                          <td className="px-4 py-3 font-bold text-gray-900">{item.linea}</td>
+                          <td className="px-4 py-3">
+                            <span className="bg-gray-100 text-gray-700 text-xs px-2 py-0.5 rounded font-medium">
+                              {item.producto}
+                            </span>
+                          </td>
+
+                          {/* CPR ACTUAL VS ANTERIOR */}
+                          <td className="px-4 py-3 font-bold text-right font-mono text-gray-900">{formatMoneda(item.cpr)}</td>
+                          <td className="px-4 py-3 text-right font-mono text-gray-500">{cprAnt > 0 ? formatMoneda(cprAnt) : '-'}</td>
+
+                          {/* VAR VARIACION CPR */}
+                          <td className="px-4 py-3 text-center">
+                            <span className={`text-xs font-bold px-2 py-0.5 rounded ${
+                              cprBajo ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800'
+                            }`}>
+                              {cprBajo ? `📉 ${diffCpr}%` : `📈 +${diffCpr}%`}
+                            </span>
+                          </td>
+
+                          {/* MENSAJES ACTUAL VS ANTERIOR */}
+                          <td className="px-4 py-3 font-bold text-right font-mono text-blue-700">{item.mensajes.toLocaleString('es-CO')}</td>
+                          <td className="px-4 py-3 text-right font-mono text-gray-500">{msgAnt > 0 ? msgAnt.toLocaleString('es-CO') : '-'}</td>
+
+                          {/* VAR VARIACION MENSAJES */}
+                          <td className="px-4 py-3 text-center">
+                            <span className={`text-xs font-bold px-2 py-0.5 rounded ${
+                              msgSubio ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800'
+                            }`}>
+                              {msgSubio ? `🚀 +${diffMsg}%` : `📉 ${diffMsg}%`}
+                            </span>
+                          </td>
+
+                          {/* DIAGNÓSTICO AUTOMÁTICO */}
+                          <td className="px-4 py-3 text-center">
+                            {cprBajo && msgSubio ? (
+                              <span className="bg-emerald-100 text-emerald-800 text-[11px] font-extrabold px-2.5 py-0.5 rounded-full">
+                                🔥 Excelente
+                              </span>
+                            ) : cprBajo || msgSubio ? (
+                              <span className="bg-blue-100 text-blue-800 text-[11px] font-extrabold px-2.5 py-0.5 rounded-full">
+                                👍 Estable
+                              </span>
+                            ) : (
+                              <span className="bg-rose-100 text-rose-800 text-[11px] font-extrabold px-2.5 py-0.5 rounded-full">
+                                ⚠️ Revisar
+                              </span>
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+          </div>
+        )}
+
         {/* Estado: Leyendo */}
         {uploadState === 'reading' && (
           <div className="bg-white rounded-xl border border-gray-200 p-12 text-center shadow-xs my-8">
             <div className="text-4xl mb-3 animate-spin inline-block">⏳</div>
             <h2 className="text-xl font-bold text-gray-800">Estamos leyendo tu pantallazo...</h2>
-            <p className="text-sm text-gray-500 mt-1">Identificando números, líneas, BPO, Coordina y presupuestos del documento.</p>
+            <p className="text-sm text-gray-500 mt-1">Identificando datos de tiendas y rendimiento.</p>
           </div>
         )}
 
@@ -1257,7 +1585,7 @@ function App() {
         </div>
       )}
 
-      {/* MODAL HISTORIAL DE BITÁCORA CON OPCIÓN PANTALLA COMPLETA ⛶ */}
+      {/* MODAL HISTORIAL DE BITÁCORA */}
       {showHistorialModal && (
         <div className={`fixed inset-0 bg-gray-900/50 backdrop-blur-xs flex items-center justify-center p-0 md:p-4 z-50 transition-all`}>
           <div className={`bg-white shadow-xl space-y-4 transition-all duration-300 flex flex-col ${
@@ -1266,7 +1594,6 @@ function App() {
               : 'rounded-2xl border border-gray-200 max-w-3xl w-full p-6'
           }`}>
             
-            {/* CABECERA CON BOTÓN DE PANTALLA COMPLETA ⛶ Y CERRAR ✕ */}
             <div className="flex justify-between items-center border-b border-gray-100 pb-3">
               <div className="flex items-center gap-2">
                 <span className="text-xl">📜</span>
@@ -1277,7 +1604,6 @@ function App() {
               </div>
               
               <div className="flex items-center gap-2">
-                {/* BOTÓN BOTÓN PANTALLA COMPLETA ⛶ */}
                 <button 
                   onClick={() => setIsBitacoraFullScreen(!isBitacoraFullScreen)}
                   title={isBitacoraFullScreen ? "Restaurar tamaño normal" : "Ampliar a Pantalla Completa"}
@@ -1299,7 +1625,6 @@ function App() {
               </div>
             </div>
 
-            {/* CONTROLES DE BUSCADOR Y FILTROS */}
             <div className="space-y-3 bg-gray-50 p-3 rounded-xl border border-gray-200">
               <div className="flex flex-col md:flex-row gap-2">
                 <div className="relative flex-1">
@@ -1368,7 +1693,6 @@ function App() {
               </div>
             </div>
 
-            {/* LISTA DE REGISTROS (SE ADAPTA AL TAMAÑO COMPLETO SI ESTÁ ACTIVADO) */}
             <div className={`overflow-y-auto space-y-3 pr-1 ${isBitacoraFullScreen ? 'flex-1 max-h-none' : 'max-h-80'}`}>
               {bitacoraFiltrada.length > 0 ? (
                 bitacoraFiltrada.map((act) => {
